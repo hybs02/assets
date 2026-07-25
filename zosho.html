@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>蔵書管理</title>
+
+<!-- ホーム画面に追加したときのアイコン。
+     GASのWebアプリは親ページを制御できずここを置けないため、この入口ページで補う。 -->
+<link rel="apple-touch-icon" sizes="180x180" href="zosho-kanri-icon-180.png">
+<link rel="icon" type="image/png" sizes="180x180" href="zosho-kanri-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="蔵書">
+<meta name="theme-color" content="#4f5de4">
+<meta name="robots" content="noindex, nofollow">
+
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+    background: #f7f8fc;
+    color: #1e1e2f;
+    text-align: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+  h1 { font-size: 18px; margin: 0; }
+  p { font-size: 13.5px; line-height: 1.8; color: #6b7280; margin: 0; max-width: 22em; }
+  a.btn {
+    display: inline-block;
+    padding: 12px 26px;
+    border-radius: 100px;
+    background: #4f5de4;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .hint { font-size: 12px; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<img src="zosho-kanri-icon-180.png" alt="">
+<h1>蔵書管理</h1>
+<p id="msg">下のボタンから開けます。<br>ホーム画面に追加すると、このアイコンで起動できます。</p>
+<a class="btn" id="link" href="#">アプリを開く</a>
+<p class="hint">iPhone: 共有 → ホーム画面に追加<br>Android: メニュー → ホーム画面に追加</p>
+
+<script>
+// 開き先は URL の # 以降で受け取る。
+// このページは公開されるため、アプリのURLをファイルに書かない。
+(function () {
+  var id = location.hash.replace(/^#/, '');
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) {
+    document.getElementById('msg').textContent =
+      'アプリのURLが指定されていません。ホーム画面のアイコンから開き直してください。';
+    return;
+  }
+  var url = 'https://script.google.com/macros/s/' + id + '/exec';
+  document.getElementById('link').href = url;
+
+  // ホーム画面から起動したときだけ自動で開く。
+  // ブラウザで開いた時に即移動すると「ホーム画面に追加」ができなくなるため。
+  var standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (standalone) {
+    document.getElementById('msg').textContent = '蔵書管理を開いています…';
+    location.replace(url);
+  }
+})();
+</script>
+
+</body>
+</html>
