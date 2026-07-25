@@ -4,83 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>蔵書管理</title>
-
-<!-- ホーム画面に追加したときのアイコン。
-     GASのWebアプリは親ページを制御できずここを置けないため、この入口ページで補う。
-
-     apple-mobile-web-app-capable は意図的に入れていない。付けるとiOSは独自のwebviewで
-     起動し、別ドメインへ移動した時にアドレスバーも戻る操作も無い状態になるため。 -->
 <link rel="apple-touch-icon" sizes="180x180" href="zosho-kanri-icon-180.png">
 <link rel="icon" type="image/png" sizes="180x180" href="zosho-kanri-icon-180.png">
-<meta name="apple-mobile-web-app-title" content="蔵書">
 <meta name="theme-color" content="#4f5de4">
 <meta name="robots" content="noindex, nofollow">
-
+<!-- 旧・入口ページ。
+     画面をPWAに移したため、ここに来た場合はPWAへ送るだけにしている。
+     以前ここをホーム画面に追加した端末が残っている可能性があるため、削除せず残す。 -->
+<meta http-equiv="refresh" content="0; url=./zosho/">
 <style>
-  body {
-    margin: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
-    background: #f7f8fc;
-    color: #1e1e2f;
-    text-align: center;
-    padding: 24px;
-    -webkit-font-smoothing: antialiased;
-  }
-  img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-  h1 { font-size: 18px; margin: 0; }
-  p { font-size: 13.5px; line-height: 1.8; color: #6b7280; margin: 0; max-width: 22em; }
-  a.btn {
-    display: inline-block;
-    padding: 12px 26px;
-    border-radius: 100px;
-    background: #4f5de4;
-    color: #fff;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .hint { font-size: 12px; color: #9ca3af; }
+  body { margin:0; min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:#f7f8fc; color:#1e1e2f; text-align:center; padding:24px; }
+  img { width:88px; height:88px; border-radius:20px; }
+  p { font-size:13.5px; color:#6b7280; margin:0; }
+  a { display:inline-block; padding:12px 26px; border-radius:100px; background:#4f5de4;
+      color:#fff; text-decoration:none; font-size:14px; font-weight:600; }
 </style>
 </head>
 <body>
-
 <img src="zosho-kanri-icon-180.png" alt="">
-<h1>蔵書管理</h1>
-<p id="msg">下のボタンから開けます。<br>ホーム画面に追加すると、このアイコンで起動できます。</p>
-<a class="btn" id="link" href="#">アプリを開く</a>
-<p class="hint">iPhone: 共有 → ホーム画面に追加<br>Android: メニュー → ホーム画面に追加</p>
-
-<script>
-// 開き先は URL の # 以降で受け取る。
-// このページは公開されるため、アプリのURLをファイルに書かない。
-(function () {
-  var id = location.hash.replace(/^#/, '');
-  if (!/^[A-Za-z0-9_-]+$/.test(id)) {
-    document.getElementById('msg').textContent =
-      'アプリのURLが指定されていません。ホーム画面のアイコンから開き直してください。';
-    return;
-  }
-  var url = 'https://script.google.com/macros/s/' + id + '/exec';
-  document.getElementById('link').href = url;
-
-  // 初回は自動で移動しない（移動すると「ホーム画面に追加」の操作ができないため）。
-  // 2回目以降＝ホーム画面のアイコンから起動した時は、そのままアプリを開く。
-  var seen = false;
-  try { seen = localStorage.getItem('zoshoEntrySeen') === '1'; } catch (e) { seen = false; }
-  if (seen) {
-    document.getElementById('msg').textContent = '蔵書管理を開いています…';
-    location.replace(url);
-    return;
-  }
-  try { localStorage.setItem('zoshoEntrySeen', '1'); } catch (e) { /* 保存できなくても支障なし */ }
-})();
-</script>
-
+<p>新しいアプリに移動しています…</p>
+<a href="./zosho/">開かない場合はこちら</a>
+<script>location.replace('./zosho/');</script>
 </body>
 </html>
