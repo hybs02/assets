@@ -31,8 +31,10 @@
     config = cfg;
   }
 
-  function fromHash() {
-    var m = location.hash.match(/setup=([A-Za-z0-9_-]+)/);
+  // 「#setup=...」を含む文字列から接続設定を取り出す。
+  // 設定リンクをそのまま貼り付けられるよう、URL全体でも受け付ける。
+  function parseSetup(text) {
+    var m = String(text || '').match(/setup=([A-Za-z0-9_-]+)/);
     if (!m) return null;
     try {
       var b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
@@ -42,16 +44,19 @@
     return null;
   }
 
+  function fromHash() {
+    return parseSetup(location.hash);
+  }
+
   function endpoint() {
     return 'https://script.google.com/macros/s/' + config.id + '/exec';
   }
 
   config = fromHash() || readStored();
-  if (fromHash()) {
-    store(config);
-    // 設定値をURLに残さない
-    history.replaceState(null, '', location.pathname + location.search);
-  }
+  if (fromHash()) store(config);
+  // URLのハッシュは消さない。
+  // iOSではホーム画面から起動したアプリがSafariと別の保存領域を持つため、
+  // 設定リンクが手元に残っていないと、そちらで設定し直せなくなる。
 
   // ---------------------------------------------------------------
   // 呼び出し
@@ -130,14 +135,21 @@
     isSet: function () { return !!config; },
     get: function () { return config ? { id: config.id, key: config.key } : null; },
     save: function (id, key) {
+      // 設定リンクをそのまま貼られた場合は、それだけで両方を取り出す
+      var fromLink = parseSetup(id) || parseSetup(key);
+      if (fromLink) {
+        store(fromLink);
+        return true;
+      }
       var cleanId = String(id || '').trim();
-      // URL を貼られても拾えるようにする
+      // WebアプリのURLを貼られても拾えるようにする
       var m = cleanId.match(/\/macros\/s\/([A-Za-z0-9_-]+)\//);
       if (m) cleanId = m[1];
       if (!cleanId || !String(key || '').trim()) return false;
       store({ id: cleanId, key: String(key).trim() });
       return true;
     },
+    parseSetup: parseSetup,
     clear: function () {
       try { localStorage.removeItem(LS_KEY); } catch (e) { /* 無視 */ }
       config = null;
