@@ -114,12 +114,16 @@
     return runner;
   }
 
-  window.google = {
-    script: {
-      get run() { return makeRunner(); },
-      host: { close: function () {}, setHeight: function () {} }
-    }
-  };
+  // 検証用ハーネスが先にスタブを入れている場合は上書きしない
+  // （設定まわり zoshoConfig は常に用意する必要があるので、ここで return しない）
+  if (!(window.google && window.google.script)) {
+    window.google = {
+      script: {
+        get run() { return makeRunner(); },
+        host: { close: function () {}, setHeight: function () {} }
+      }
+    };
+  }
 
   // 画面側から設定状態を扱えるようにする
   window.zoshoConfig = {
