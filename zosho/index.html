@@ -1079,10 +1079,11 @@
   <div class="setup-card">
     <img src="icon-180.png" alt="" class="setup-icon">
     <h2>接続設定</h2>
-    <p class="setup-lead">スプレッドシートに接続するための情報を入力してください。<br>この端末では初回だけです。</p>
-    <label for="setup-id">WebアプリのURL</label>
-    <input type="text" id="setup-id" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <label for="setup-key">接続キー</label>
+    <p class="setup-lead"><strong>設定リンクを貼り付けるだけ</strong>で接続できます。<br>
+      ホーム画面のアプリはブラウザと保存領域が別なので、それぞれ一度ずつ必要です。</p>
+    <label for="setup-id">設定リンク（または WebアプリのURL）</label>
+    <input type="text" id="setup-id" placeholder="https://…/zosho/#setup=… を貼り付け" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="setup-key">接続キー（設定リンクを貼った場合は不要）</label>
     <input type="text" id="setup-key" placeholder="接続キー" autocomplete="off" autocapitalize="off" spellcheck="false">
     <button class="btn full" id="setup-save">保存して接続</button>
     <div class="setup-msg" id="setup-msg"></div>
@@ -2186,11 +2187,22 @@ function initSetupScreen_() {
     keyEl.value = current.key;
   }
 
+  // 設定リンクを貼られたら、その場で両方の欄に展開して分かるようにする
+  idEl.addEventListener('input', () => {
+    const parsed = window.zoshoConfig.parseSetup(idEl.value);
+    if (parsed) {
+      idEl.value = parsed.id;
+      keyEl.value = parsed.key;
+      msg.className = 'setup-msg ok';
+      msg.textContent = '設定リンクを読み取りました。「保存して接続」を押してください';
+    }
+  });
+
   btn.addEventListener('click', () => {
     msg.className = 'setup-msg';
     if (!window.zoshoConfig.save(idEl.value, keyEl.value)) {
       msg.className = 'setup-msg error';
-      msg.textContent = 'URLと接続キーの両方を入力してください';
+      msg.textContent = '設定リンクを貼り付けるか、URLと接続キーの両方を入力してください';
       return;
     }
     btn.disabled = true;
