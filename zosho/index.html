@@ -1044,6 +1044,18 @@
       border-color: var(--c-primary);
       box-shadow: 0 0 0 3px rgba(79,93,228,0.12);
     }
+    .setup-toggle {
+      background: none;
+      border: none;
+      color: var(--c-text-muted);
+      font-size: 12px;
+      font-family: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+      margin-top: 18px;
+      padding: 4px;
+    }
+    #setup-manual { margin-top: 12px; }
     .setup-msg { font-size: 12.5px; margin-top: 14px; line-height: 1.7; min-height: 1.2em; }
     .setup-msg.error { color: var(--c-danger); }
     .setup-msg.ok { color: var(--c-success); }
@@ -1079,14 +1091,19 @@
   <div class="setup-card">
     <img src="icon-180.png" alt="" class="setup-icon">
     <h2>接続設定</h2>
-    <p class="setup-lead"><strong>設定リンクを貼り付けるだけ</strong>で接続できます。<br>
+    <p class="setup-lead"><strong>設定リンクを貼り付けてください。</strong><br>
       ホーム画面のアプリはブラウザと保存領域が別なので、それぞれ一度ずつ必要です。</p>
-    <label for="setup-id">設定リンク（または WebアプリのURL）</label>
-    <input type="text" id="setup-id" placeholder="https://…/zosho/#setup=… を貼り付け" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <label for="setup-key">接続キー（設定リンクを貼った場合は不要）</label>
-    <input type="text" id="setup-key" placeholder="接続キー" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <button class="btn full" id="setup-save">保存して接続</button>
+    <input type="text" id="setup-link" placeholder="設定リンクをここに貼り付け" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="btn full" id="setup-save">接続する</button>
     <div class="setup-msg" id="setup-msg"></div>
+
+    <button type="button" class="setup-toggle" id="setup-toggle">URLとキーを個別に入力する</button>
+    <div id="setup-manual" hidden>
+      <label for="setup-id">WebアプリのURL</label>
+      <input type="text" id="setup-id" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="setup-key">接続キー</label>
+      <input type="text" id="setup-key" placeholder="接続キー" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
   </div>
 </div>
 
@@ -2177,9 +2194,12 @@ function bookCardHtml(b) {
 function initSetupScreen_() {
   const btn = document.getElementById('setup-save');
   if (!btn) return;
+  const linkEl = document.getElementById('setup-link');
   const idEl = document.getElementById('setup-id');
   const keyEl = document.getElementById('setup-key');
   const msg = document.getElementById('setup-msg');
+  const manual = document.getElementById('setup-manual');
+  const toggle = document.getElementById('setup-toggle');
 
   const current = window.zoshoConfig && window.zoshoConfig.get();
   if (current) {
@@ -2187,22 +2207,31 @@ function initSetupScreen_() {
     keyEl.value = current.key;
   }
 
-  // 設定リンクを貼られたら、その場で両方の欄に展開して分かるようにする
-  idEl.addEventListener('input', () => {
-    const parsed = window.zoshoConfig.parseSetup(idEl.value);
-    if (parsed) {
-      idEl.value = parsed.id;
-      keyEl.value = parsed.key;
+  toggle.addEventListener('click', () => {
+    manual.hidden = !manual.hidden;
+    toggle.textContent = manual.hidden ? 'URLとキーを個別に入力する' : '設定リンクの貼り付けに戻る';
+  });
+
+  // 貼り付けた時点で読み取れたことを伝える（押す前に分かるように）
+  linkEl.addEventListener('input', () => {
+    if (window.zoshoConfig.parseSetup(linkEl.value)) {
       msg.className = 'setup-msg ok';
-      msg.textContent = '設定リンクを読み取りました。「保存して接続」を押してください';
+      msg.textContent = '設定リンクを読み取りました。「接続する」を押してください';
+    } else {
+      msg.className = 'setup-msg';
+      msg.textContent = '';
     }
   });
 
   btn.addEventListener('click', () => {
     msg.className = 'setup-msg';
-    if (!window.zoshoConfig.save(idEl.value, keyEl.value)) {
+    // 貼り付け欄が空なら、個別入力の値で試す
+    const saved = linkEl.value.trim()
+      ? window.zoshoConfig.save(linkEl.value, '')
+      : window.zoshoConfig.save(idEl.value, keyEl.value);
+    if (!saved) {
       msg.className = 'setup-msg error';
-      msg.textContent = '設定リンクを貼り付けるか、URLと接続キーの両方を入力してください';
+      msg.textContent = '設定リンクを貼り付けてください（またはURLとキーを個別に入力）';
       return;
     }
     btn.disabled = true;
