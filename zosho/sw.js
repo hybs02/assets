@@ -6,7 +6,7 @@
  */
 'use strict';
 
-const CACHE = 'zosho-shell-v1';
+const CACHE = 'zosho-shell-v2';
 const SHELL = [
   './',
   './index.html',
