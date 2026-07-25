@@ -6,12 +6,12 @@
 <title>蔵書管理</title>
 
 <!-- ホーム画面に追加したときのアイコン。
-     GASのWebアプリは親ページを制御できずここを置けないため、この入口ページで補う。 -->
+     GASのWebアプリは親ページを制御できずここを置けないため、この入口ページで補う。
+
+     apple-mobile-web-app-capable は意図的に入れていない。付けるとiOSは独自のwebviewで
+     起動し、別ドメインへ移動した時にアドレスバーも戻る操作も無い状態になるため。 -->
 <link rel="apple-touch-icon" sizes="180x180" href="zosho-kanri-icon-180.png">
 <link rel="icon" type="image/png" sizes="180x180" href="zosho-kanri-icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="蔵書">
 <meta name="theme-color" content="#4f5de4">
 <meta name="robots" content="noindex, nofollow">
@@ -69,14 +69,16 @@
   var url = 'https://script.google.com/macros/s/' + id + '/exec';
   document.getElementById('link').href = url;
 
-  // ホーム画面から起動したときだけ自動で開く。
-  // ブラウザで開いた時に即移動すると「ホーム画面に追加」ができなくなるため。
-  var standalone = window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-  if (standalone) {
+  // 初回は自動で移動しない（移動すると「ホーム画面に追加」の操作ができないため）。
+  // 2回目以降＝ホーム画面のアイコンから起動した時は、そのままアプリを開く。
+  var seen = false;
+  try { seen = localStorage.getItem('zoshoEntrySeen') === '1'; } catch (e) { seen = false; }
+  if (seen) {
     document.getElementById('msg').textContent = '蔵書管理を開いています…';
     location.replace(url);
+    return;
   }
+  try { localStorage.setItem('zoshoEntrySeen', '1'); } catch (e) { /* 保存できなくても支障なし */ }
 })();
 </script>
 
