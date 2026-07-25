@@ -1,0 +1,2920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <!-- GAS版では doGet の addMetaTag で付けていたので、HTML側には無かった -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>蔵書管理</title>
+  <meta name="theme-color" content="#4f5de4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="蔵書">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --c-bg: #f7f8fc;
+      --c-surface: #ffffff;
+      --c-primary: #4f5de4;
+      --c-primary-dark: #3a47c2;
+      --c-primary-light: #e8eafc;
+      --c-text: #1e1e2f;
+      --c-text-sub: #6b7280;
+      --c-text-muted: #9ca3af;
+      --c-border: #e5e7eb;
+      --c-danger: #ef4444;
+      --c-success: #22c55e;
+      --c-warning: #f59e0b;
+      --c-info: #3b82f6;
+      --c-purple: #8b5cf6;
+      --c-green: #10b981;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-pill: 100px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
+      --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--c-bg);
+      color: var(--c-text);
+      padding-bottom: calc(72px + var(--safe-bottom));
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    header {
+      background: var(--c-primary);
+      color: #fff;
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .container { padding: 16px; max-width: 720px; margin: 0 auto; }
+
+    /* Bottom Tabs */
+    nav.tabs {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--c-border);
+      z-index: 50;
+      padding-bottom: var(--safe-bottom);
+    }
+    nav.tabs button {
+      flex: 1;
+      padding: 10px 4px 14px;
+      border: none;
+      background: transparent;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--c-text-muted);
+      cursor: pointer;
+      transition: color var(--transition);
+      letter-spacing: 0.02em;
+    }
+    nav.tabs button.active { color: var(--c-primary); font-weight: 600; }
+    nav.tabs button .icon {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 2px;
+      transition: transform var(--transition);
+    }
+    nav.tabs button.active .icon { transform: scale(1.1); }
+
+    .tab-content { display: none; animation: fadeUp 0.25s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Form */
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--c-text-sub);
+      margin-bottom: 5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .form-row input[type="text"],
+    .form-row input[type="date"],
+    .form-row select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      background: var(--c-surface);
+      color: var(--c-text);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      font-family: inherit;
+    }
+    .form-row input:focus, .form-row select:focus {
+      outline: none;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 3px rgba(79,93,228,0.12);
+    }
+    .form-row .checkbox-row {
+      display: flex;
+      gap: 20px;
+      padding: 8px 0;
+    }
+    .form-row .checkbox-row label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--c-text);
+      margin: 0;
+      text-transform: none;
+      letter-spacing: 0;
+      cursor: pointer;
+    }
+    .form-row .checkbox-row input[type="checkbox"] {
+      width: 20px; height: 20px;
+      accent-color: var(--c-primary);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--c-primary);
+      color: #fff;
+      transition: background var(--transition), transform 0.1s, box-shadow var(--transition);
+      font-family: inherit;
+      letter-spacing: 0.02em;
+    }
+    .btn:hover { background: var(--c-primary-dark); }
+    .btn:active { transform: scale(0.97); }
+    .btn.secondary { background: #6b7280; }
+    .btn.secondary:hover { background: #4b5563; }
+    .btn.danger { background: var(--c-danger); }
+    .btn.danger:hover { background: #dc2626; }
+    .btn.full { width: 100%; padding: 14px; font-size: 15px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .isbn-row { display: flex; gap: 8px; }
+    .isbn-row input { flex: 1; }
+    .isbn-row .btn { padding: 10px 14px; font-size: 13px; white-space: nowrap; }
+
+    /* Search Box */
+    .search-box {
+      width: 100%;
+      padding: 12px 16px 12px 42px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius);
+      font-size: 15px;
+      margin-bottom: 12px;
+      background: var(--c-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%239ca3af' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") 14px center no-repeat;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      font-family: inherit;
+      color: var(--c-text);
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 3px rgba(79,93,228,0.12);
+    }
+    .search-box::placeholder { color: var(--c-text-muted); }
+
+    /* 検索欄 + クリアボタン */
+    .search-row { display: flex; gap: 6px; align-items: flex-start; }
+    .search-row .search-box { flex: 1; }
+    .search-clear {
+      flex: 0 0 auto;
+      padding: 12px 14px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius);
+      background: var(--c-surface);
+      color: var(--c-text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+    }
+    .search-clear:hover { background: var(--c-bg); color: var(--c-text); }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    /* 横1行に固定して溢れは横スクロール。
+       ラベルや判型が増えても一覧の見え始めが下がらないようにする */
+    .filter-bar.scroll-x {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    /* 右に続きがある時だけ端をフェードさせる(JSで .fade を付け外しする) */
+    .filter-bar.scroll-x.fade {
+      mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    }
+    .filter-bar.scroll-x::-webkit-scrollbar { display: none; }
+    .filter-bar.scroll-x button { flex: 0 0 auto; }
+    .filter-bar.scroll-x:last-child { margin-bottom: 0; }
+    .filter-bar button {
+      padding: 8px 14px;
+      border: 1.5px solid var(--c-border);
+      background: var(--c-surface);
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--c-text-sub);
+      transition: all var(--transition);
+      font-family: inherit;
+      white-space: nowrap;
+      min-height: 34px;
+    }
+    .filter-bar button:hover { border-color: var(--c-primary); color: var(--c-primary); }
+    .filter-bar button.active {
+      background: var(--c-primary);
+      color: #fff;
+      border-color: var(--c-primary);
+    }
+    .filter-bar button.filter-none {
+      border-style: dashed;
+      color: var(--c-danger);
+      border-color: #fca5a5;
+    }
+    .filter-bar button.filter-none.active {
+      background: var(--c-danger);
+      color: #fff;
+      border-color: var(--c-danger);
+      border-style: solid;
+    }
+
+    /* Toolbar (表示モード + 絞り込みトグル) */
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      margin-bottom: 8px;
+    }
+    .toolbar .view-mode-bar { flex: 1; margin-bottom: 0; }
+    .toolbar-btn {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 14px;
+      border: 1.5px solid var(--c-border);
+      background: var(--c-surface);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--c-text-sub);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+    .toolbar-btn::after {
+      content: '▾';
+      font-size: 10px;
+      transition: transform var(--transition);
+    }
+    .toolbar-btn[aria-expanded="true"] { border-color: var(--c-primary); color: var(--c-primary); }
+    .toolbar-btn[aria-expanded="true"]::after { transform: rotate(180deg); }
+    .filter-count {
+      background: var(--c-primary);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    /* display 指定は hidden 属性より強いため、明示的に打ち消す */
+    .filter-count[hidden] { display: none; }
+
+    /* Sort */
+    .sort-bar { display: flex; align-items: center; }
+    .sort-bar select {
+      padding: 5px 8px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      background: var(--c-surface);
+      font-family: inherit;
+      color: var(--c-text-sub);
+      max-width: 150px;
+    }
+    .sort-bar.hidden { display: none; }
+    .count-actions { display: flex; align-items: center; gap: 6px; }
+
+    /* Book Card */
+    .book-card {
+      display: flex;
+      gap: 12px;
+      background: var(--c-surface);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: box-shadow var(--transition), transform 0.1s;
+      border: 1px solid transparent;
+    }
+    .book-card:hover { box-shadow: var(--shadow); }
+    .book-card:active { transform: scale(0.99); }
+    .book-card .cover {
+      flex: 0 0 auto;
+      width: 44px;
+      height: 62px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #eef0f5, #dfe3ea);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      color: var(--c-text-muted);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.10);
+    }
+    .book-card .cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .book-card .body { flex: 1; min-width: 0; }
+    .book-card .title {
+      font-size: 14.5px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .book-card .meta {
+      font-size: 11.5px;
+      color: var(--c-text-sub);
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .book-card .badges {
+      margin-top: 7px;
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    body.dark .book-card .cover { background: linear-gradient(135deg, #2b3648, #222b3a); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    /* バッジは「例外」だけを出す。
+       既読は✓の点、未読・未所持・評価・判型・ラベルのみ表示し、
+       既定状態(既読済み・所持あり)にはラベルを付けない */
+    .badge.read {
+      background: #dcfce7; color: #15803d;
+      padding: 3px 7px; font-size: 11px; line-height: 1;
+    }
+    .badge.unread { background: #fef3c7; color: #b45309; }
+    .badge.notowned { background: #f3f4f6; color: #6b7280; }
+    .badge.format { background: #ede9fe; color: #7c3aed; }
+    .badge.label { background: #ecfdf5; color: #059669; }
+    .badge.rating { background: #fef3c7; color: #b45309; }
+    .badge.more { background: transparent; color: var(--c-text-muted); padding: 3px 2px; }
+    .card-memo {
+      font-size: 11px;
+      color: var(--c-text-muted);
+      margin-top: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    body.dark .badge.read { background: rgba(34,197,94,0.18); color: #6ee7a8; }
+    body.dark .badge.unread, body.dark .badge.rating { background: rgba(245,158,11,0.18); color: #fbbf24; }
+    body.dark .badge.notowned { background: rgba(156,163,175,0.18); color: #cbd5e1; }
+    body.dark .badge.format { background: rgba(139,92,246,0.18); color: #c4b5fd; }
+    body.dark .badge.label { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+
+    /* Label Chips */
+    .label-chips-suggest {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+    .label-chips-suggest .chip {
+      padding: 4px 12px;
+      border: 1.5px solid #a7f3d0;
+      background: #ecfdf5;
+      color: #059669;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .label-chips-suggest .chip:hover { background: #d1fae5; border-color: #6ee7b7; }
+
+    /* View Mode Bar */
+    .view-mode-bar {
+      display: flex;
+      background: var(--c-surface);
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .view-mode-bar button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--c-text-sub);
+      transition: all var(--transition);
+      font-family: inherit;
+    }
+    .view-mode-bar button.active {
+      background: var(--c-primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* Author Group */
+    .author-group {
+      background: var(--c-surface);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .author-header {
+      display: flex;
+      align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f8faff, #f3f4f6);
+      border-left: 3px solid var(--c-primary);
+      user-select: none;
+      transition: background var(--transition);
+    }
+    .author-header:hover { background: linear-gradient(135deg, #eef1ff, #eef0f2); }
+    .author-header .arrow {
+      font-size: 11px;
+      color: var(--c-text-muted);
+      margin-right: 10px;
+      transition: transform var(--transition);
+    }
+    .author-header.collapsed .arrow { transform: rotate(-90deg); }
+    .author-header .author-name {
+      flex: 1;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--c-text);
+    }
+    .author-header .author-yomi {
+      font-size: 11px;
+      color: var(--c-text-muted);
+      margin-left: 6px;
+    }
+    .author-header .author-count {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--c-primary);
+      background: var(--c-primary-light);
+      padding: 2px 10px;
+      border-radius: var(--radius-pill);
+    }
+    .author-books {
+      padding: 0 10px 10px;
+      border-top: 1px solid var(--c-border);
+    }
+    .author-books.collapsed { display: none; }
+    .author-books .book-card {
+      box-shadow: none;
+      background: #fafbfd;
+      margin-bottom: 4px;
+      margin-top: 8px;
+      border: 1px solid var(--c-border);
+    }
+    .group-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .group-controls button {
+      background: transparent;
+      border: 1.5px solid var(--c-border);
+      color: var(--c-text-sub);
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all var(--transition);
+      font-family: inherit;
+    }
+    .group-controls button:hover { border-color: var(--c-primary); color: var(--c-primary); }
+
+    /* Count / Refresh */
+    .count {
+      font-size: 12px;
+      color: var(--c-text-sub);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-refresh {
+      background: transparent;
+      border: 1.5px solid var(--c-border);
+      color: var(--c-primary);
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-family: inherit;
+      flex: 0 0 auto;
+    }
+    .btn-refresh:hover { background: var(--c-primary-light); border-color: var(--c-primary); }
+    .btn-refresh:disabled { opacity: 0.6; }
+    .btn-refresh.spinning { animation: spin 0.8s linear infinite; }
+
+    /* Modal */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-bg.active { display: flex; }
+    .modal {
+      background: var(--c-surface);
+      border-radius: 16px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95) translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    .modal h2 { margin: 0 0 16px; font-size: 17px; font-weight: 700; }
+    .modal .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .modal .actions .btn { flex: 1; }
+
+    /* Scanner */
+    #scanner-area {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      background: #111;
+      border-radius: var(--radius);
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+    }
+    #scanner-video { width: 100%; height: 100%; object-fit: cover; }
+    .scan-overlay {
+      position: absolute;
+      top: 50%; left: 10%;
+      width: 80%; height: 25%;
+      transform: translateY(-50%);
+      border: 2px solid #ef4444;
+      border-radius: 6px;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+    }
+    .scan-msg {
+      text-align: center;
+      padding: 14px;
+      font-size: 13px;
+      color: var(--c-text-sub);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: calc(84px + var(--safe-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--c-text);
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 200;
+      max-width: 90%;
+      box-shadow: var(--shadow-lg);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: var(--c-danger); }
+
+    .loading {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--c-text-muted);
+      font-size: 14px;
+    }
+    /* 自己診断の結果表示 */
+    .diag {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: left;
+    }
+    .diag h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+    .diag pre {
+      margin: 0 0 12px;
+      padding: 12px;
+      background: var(--c-bg);
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--c-text);
+    }
+    .error-detail {
+      margin: 10px auto 14px;
+      max-width: 420px;
+      font-size: 12px;
+      color: var(--c-danger);
+      word-break: break-word;
+      line-height: 1.6;
+    }
+
+    /* Search Section (Registration) */
+    .search-section {
+      background: var(--c-surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--c-border);
+    }
+    .section-divider {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--c-text-muted);
+      margin: 20px 0 14px;
+      position: relative;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .section-divider::before, .section-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 30%;
+      height: 1px;
+      background: var(--c-border);
+    }
+    .section-divider::before { left: 0; }
+    .section-divider::after { right: 0; }
+
+    #search-results { margin-top: 10px; }
+    .search-result {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      cursor: pointer;
+      background: var(--c-surface);
+      align-items: flex-start;
+      transition: all var(--transition);
+    }
+    .search-result:hover { border-color: var(--c-primary); background: #fafbff; }
+    .search-result.selected {
+      background: var(--c-primary-light);
+      border-color: var(--c-primary);
+      border-width: 2px;
+      padding: 11px;
+    }
+    .search-results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .btn-mini {
+      background: var(--c-primary);
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition);
+      font-family: inherit;
+    }
+    .btn-mini:hover { background: var(--c-primary-dark); }
+    .search-result .thumb {
+      width: 52px; height: 72px;
+      object-fit: cover;
+      background: #e5e7eb;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .search-result .thumb-placeholder {
+      width: 52px; height: 72px;
+      background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+      border-radius: 4px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #9ca3af;
+    }
+    .search-result .info { flex: 1; min-width: 0; }
+    .search-result .info .t { font-size: 14px; font-weight: 600; line-height: 1.35; margin-bottom: 4px; }
+    .search-result .info .m { font-size: 11px; color: var(--c-text-sub); line-height: 1.5; }
+
+    /* Scroll to top indicator */
+    .scroll-top-btn {
+      position: fixed;
+      bottom: calc(80px + var(--safe-bottom));
+      right: 16px;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: var(--c-primary);
+      color: #fff;
+      border: none;
+      box-shadow: var(--shadow-lg);
+      cursor: pointer;
+      font-size: 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+      transition: transform var(--transition), opacity var(--transition);
+    }
+    .scroll-top-btn.visible { display: flex; animation: fadeUp 0.2s ease; }
+    .scroll-top-btn:active { transform: scale(0.9); }
+
+    /* Dark Mode */
+    .dark-toggle {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    header { position: relative; }
+
+    .ss-link {
+      position: absolute;
+      right: 52px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: #fff;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition);
+    }
+    a.ss-link { text-decoration: none; }
+    .ss-link:hover { background: rgba(255,255,255,0.25); }
+    .sync-indicator {
+      position: fixed;
+      top: 60px;
+      right: 16px;
+      background: var(--c-success);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(-8px);
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+    }
+    .sync-indicator.show { opacity: 1; transform: translateY(0); }
+
+    body.dark {
+      --c-bg: #111827;
+      --c-surface: #1f2937;
+      --c-primary: #818cf8;
+      --c-primary-dark: #6366f1;
+      --c-primary-light: rgba(129,140,248,0.15);
+      --c-text: #f3f4f6;
+      --c-text-sub: #9ca3af;
+      --c-text-muted: #6b7280;
+      --c-border: #374151;
+      --c-danger: #f87171;
+      color-scheme: dark;
+    }
+    body.dark header { background: #1e1b4b; }
+    body.dark nav.tabs { background: rgba(31,41,55,0.92); border-top-color: #374151; }
+    body.dark .search-box { background-color: var(--c-surface); }
+    body.dark .modal { background: var(--c-surface); }
+    body.dark .author-header { background: linear-gradient(135deg, #1e1b4b22, #1f293788); }
+    body.dark .author-header:hover { background: linear-gradient(135deg, #1e1b4b44, #1f293788); }
+    body.dark .author-books .book-card { background: #111827; }
+    body.dark .search-section { background: var(--c-surface); border-color: var(--c-border); }
+    body.dark .search-result { background: var(--c-surface); border-color: var(--c-border); }
+    body.dark .search-result:hover { background: #273048; }
+    body.dark .toast { background: #e5e7eb; color: #111827; }
+    body.dark .toast.error { background: var(--c-danger); color: #fff; }
+
+    /* Star Rating */
+    .star-rating { display: inline-flex; gap: 2px; font-size: 20px; cursor: pointer; }
+    .star-rating .star { color: #d1d5db; transition: color 0.1s; user-select: none; }
+    .star-rating .star.filled { color: #f59e0b; }
+    .star-rating .star:hover { color: #fbbf24; }
+
+    /* Stats */
+    .stat-cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--c-surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+      border: 1px solid var(--c-border);
+    }
+    .stat-card .stat-val { font-size: 28px; font-weight: 700; color: var(--c-primary); }
+    .stat-card .stat-label { font-size: 11px; color: var(--c-text-sub); margin-top: 2px; font-weight: 500; }
+    .chart-section {
+      background: var(--c-surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      border: 1px solid var(--c-border);
+    }
+    .chart-section h3 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--c-text);
+    }
+    .bar-chart { display: flex; flex-direction: column; gap: 6px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .bar-row .bar-label { width: 80px; text-align: right; color: var(--c-text-sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+    .bar-row .bar-track { flex: 1; height: 18px; background: var(--c-border); border-radius: 4px; overflow: hidden; }
+    .bar-row .bar-fill { height: 100%; background: var(--c-primary); border-radius: 4px; transition: width 0.4s ease; min-width: 2px; }
+    .bar-row .bar-val { width: 30px; font-weight: 600; color: var(--c-text); }
+
+    /* CSV import */
+    .csv-drop {
+      border: 2px dashed var(--c-border);
+      border-radius: var(--radius);
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--c-text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all var(--transition);
+      margin-bottom: 12px;
+    }
+    .csv-drop:hover, .csv-drop.dragover { border-color: var(--c-primary); color: var(--c-primary); background: var(--c-primary-light); }
+    .csv-drop input[type="file"] { display: none; }
+
+    /* 接続設定 */
+    .setup-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: var(--c-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .setup-overlay[hidden] { display: none; }
+    .setup-card {
+      background: var(--c-surface);
+      border-radius: 16px;
+      padding: 28px 22px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .setup-icon { width: 72px; height: 72px; border-radius: 18px; margin-bottom: 14px; }
+    .setup-card h2 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+    .setup-lead { font-size: 13px; color: var(--c-text-sub); line-height: 1.8; margin: 0 0 20px; }
+    .setup-card label {
+      display: block;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--c-text-sub);
+      letter-spacing: 0.04em;
+      margin: 0 0 5px;
+    }
+    .setup-card input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--c-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+      background: var(--c-surface);
+      color: var(--c-text);
+      margin-bottom: 16px;
+    }
+    .setup-card input:focus {
+      outline: none;
+      border-color: var(--c-primary);
+      box-shadow: 0 0 0 3px rgba(79,93,228,0.12);
+    }
+    .setup-msg { font-size: 12.5px; margin-top: 14px; line-height: 1.7; min-height: 1.2em; }
+    .setup-msg.error { color: var(--c-danger); }
+    .setup-msg.ok { color: var(--c-success); }
+
+    /* 起動状態の自己申告（表示判定にJSを使わない） */
+    .boot-report > div {
+      display: none;
+      margin: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      background: #fee2e2;
+      color: #991b1b;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    html:not([data-boot]) #br-noscript { display: block; }
+    html[data-boot]:not([data-script-start]) #br-nostart { display: block; }
+    html[data-script-start]:not([data-script-end]) #br-partial { display: block; }
+  </style>
+</head>
+<body>
+<!-- スクリプトが動いたかどうかの目印。
+     JSが一切実行されない状況でも状態が分かるよう、表示判定はCSSだけで行う。 -->
+<script>document.documentElement.setAttribute('data-boot', '1');</script>
+<div class="boot-report">
+  <div id="br-noscript">⚠ スクリプトが1つも実行されていません（インラインスクリプトがブロックされている可能性）</div>
+  <div id="br-nostart">⚠ アプリのスクリプトが開始されませんでした（構文エラーの可能性）</div>
+  <div id="br-partial">⚠ アプリのスクリプトが途中で停止しました</div>
+</div>
+
+<!-- 初回のみ表示する接続設定 -->
+<div class="setup-overlay" id="setup-overlay" hidden>
+  <div class="setup-card">
+    <img src="icon-180.png" alt="" class="setup-icon">
+    <h2>接続設定</h2>
+    <p class="setup-lead">スプレッドシートに接続するための情報を入力してください。<br>この端末では初回だけです。</p>
+    <label for="setup-id">WebアプリのURL</label>
+    <input type="text" id="setup-id" placeholder="https://script.google.com/macros/s/..../exec" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label for="setup-key">接続キー</label>
+    <input type="text" id="setup-key" placeholder="接続キー" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="btn full" id="setup-save">保存して接続</button>
+    <div class="setup-msg" id="setup-msg"></div>
+  </div>
+</div>
+
+<header onclick="if(event.target===this||event.target===this.querySelector('h1'))window.scrollTo({top:0,behavior:'smooth'});">
+  <h1>📚 蔵書管理</h1>
+  <a class="ss-link" id="btn-spreadsheet" title="スプレッドシートを開く" href="#" target="_top" onclick="event.stopPropagation();">📊</a>
+  <button class="dark-toggle" onclick="event.stopPropagation();document.body.classList.toggle('dark');localStorage.setItem('darkMode',document.body.classList.contains('dark'));" title="ダーク/ライト切替">🌓</button>
+</header>
+
+<button class="scroll-top-btn" id="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'});">↑</button>
+
+<div class="container">
+
+  <!-- 一覧タブ -->
+  <div id="tab-list" class="tab-content active">
+    <div class="search-row">
+      <input type="text" class="search-box" id="search-input" placeholder="タイトル・著者・出版社で検索" autocomplete="off">
+      <button type="button" class="search-clear" id="btn-list-search-clear" title="検索条件をクリア">✕</button>
+    </div>
+    <div class="toolbar">
+      <div class="view-mode-bar">
+        <button data-view="flat" class="active">📋 リスト</button>
+        <button data-view="author">👤 著者別</button>
+      </div>
+      <button type="button" class="toolbar-btn" id="btn-toggle-filters" aria-expanded="false">
+        絞り込み<span class="filter-count" id="filter-count" hidden>0</span>
+      </button>
+    </div>
+    <div class="filter-bar scroll-x" id="status-filter-bar">
+      <button data-filter="all" class="active">すべて</button>
+      <button data-filter="unread">未読</button>
+      <button data-filter="read">既読</button>
+      <button data-filter="owned">所持</button>
+      <button data-filter="notowned">未所持</button>
+    </div>
+    <div id="extra-filters" hidden>
+      <div class="filter-bar scroll-x" id="format-filter-bar"></div>
+      <div class="filter-bar scroll-x" id="label-filter-bar"></div>
+    </div>
+    <div class="count" id="count">
+      <span id="count-text">読み込み中...</span>
+      <div class="count-actions">
+        <div class="sort-bar" id="sort-bar">
+          <select id="sort-select" aria-label="並び順">
+            <option value="updated_desc">更新が新しい順</option>
+            <option value="updated_asc">更新が古い順</option>
+            <option value="created_desc">登録が新しい順</option>
+            <option value="created_asc">登録が古い順</option>
+            <option value="title_asc">タイトル昇順</option>
+            <option value="title_desc">タイトル降順</option>
+            <option value="author_asc">著者昇順</option>
+            <option value="author_desc">著者降順</option>
+            <option value="pubdate_desc">発売が新しい順</option>
+            <option value="pubdate_asc">発売が古い順</option>
+          </select>
+        </div>
+        <button class="btn-refresh" id="btn-refresh" title="最新化">🔄</button>
+      </div>
+    </div>
+    <div id="book-list"></div>
+  </div>
+
+  <!-- 登録タブ -->
+  <div id="tab-add" class="tab-content">
+
+    <!-- キーワード検索 -->
+    <div class="search-section">
+      <div class="form-row">
+        <label>📚 キーワード検索(タイトル・著者名など)</label>
+        <div class="isbn-row">
+          <input type="text" id="search-query" placeholder="例: 吾輩は猫である 夏目漱石">
+          <button class="btn" id="btn-search">検索</button>
+        </div>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <div class="section-divider">または直接入力</div>
+
+    <div class="form-row">
+      <label>ISBN(自動取得)</label>
+      <div class="isbn-row">
+        <input type="text" id="add-isbn" placeholder="例: 9784101001012" inputmode="numeric">
+        <button class="btn" id="btn-lookup">取得</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>タイトル</label>
+      <input type="text" id="add-title">
+    </div>
+    <div class="form-row">
+      <label>著者</label>
+      <input type="text" id="add-author">
+    </div>
+    <div class="form-row">
+      <label>著者読み</label>
+      <input type="text" id="add-authorYomi">
+    </div>
+    <div class="form-row">
+      <label>出版社</label>
+      <input type="text" id="add-publisher">
+    </div>
+    <div class="form-row">
+      <label>発売日</label>
+      <input type="text" id="add-pubdate" placeholder="YYYY-MM-DD">
+    </div>
+    <div class="form-row">
+      <label>判型</label>
+      <select id="add-format">
+        <option value="">未指定</option>
+        <option value="単行本">単行本</option>
+        <option value="文庫">文庫</option>
+        <option value="新書">新書</option>
+        <option value="コミック">コミック</option>
+        <option value="ムック">ムック</option>
+        <option value="雑誌">雑誌</option>
+        <option value="絵本">絵本</option>
+        <option value="児童書">児童書</option>
+        <option value="大型本">大型本</option>
+        <option value="全集・双書">全集・双書</option>
+        <option value="事典">事典</option>
+        <option value="図鑑">図鑑</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>ラベル(カンマ区切りで複数指定可)</label>
+      <input type="text" id="add-labels" placeholder="例: SF, 海外文学, 積読" list="label-suggestions">
+      <datalist id="label-suggestions"></datalist>
+      <div id="add-label-chips" class="label-chips-suggest"></div>
+    </div>
+    <div class="form-row">
+      <label>評価</label>
+      <div class="star-rating" id="add-rating-stars" data-value="0">
+        <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>メモ</label>
+      <input type="text" id="add-memo" placeholder="感想や一言メモ">
+    </div>
+    <div class="form-row">
+      <div class="checkbox-row">
+        <label><input type="checkbox" id="add-read"> 既読</label>
+        <label><input type="checkbox" id="add-owned" checked> 所持</label>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn secondary" type="button" id="btn-back-to-results" style="flex:0 0 auto; padding:10px 14px; display:none;" onclick="document.getElementById('search-results').scrollIntoView({behavior:'smooth',block:'center'});">⬆ 検索結果へ戻る</button>
+      <button class="btn" id="btn-save" style="flex:1;">登録</button>
+    </div>
+  </div>
+
+  <!-- スキャンタブ -->
+  <div id="tab-scan" class="tab-content">
+    <div id="scanner-area">
+      <video id="scanner-video" playsinline></video>
+      <div class="scan-overlay"></div>
+    </div>
+    <div class="scan-msg" id="scan-msg">「スキャン開始」を押してください</div>
+    <button class="btn full" id="btn-scan-toggle">スキャン開始</button>
+  </div>
+
+  <!-- 統計タブ -->
+  <div id="tab-stats" class="tab-content">
+    <div id="stats-content"><div class="empty">統計を読み込み中...</div></div>
+
+    <!-- CSV一括インポート -->
+    <div class="chart-section" style="margin-top:20px;">
+      <h3>CSV一括インポート</h3>
+      <p style="font-size:12px;color:var(--c-text-sub);margin:0 0 10px;">CSVファイルをドラッグ&ドロップ、またはクリックで選択。ヘッダー行でカラムを自動判定します。同じISBNの本は自動スキップされます。</p>
+      <div class="csv-drop" id="csv-drop" onclick="document.getElementById('csv-file').click();">
+        📂 CSVファイルをここにドロップ、またはクリックして選択
+        <input type="file" id="csv-file" accept=".csv,.tsv,.txt">
+      </div>
+      <div id="csv-result" style="font-size:13px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="tabs">
+  <button data-tab="list" class="active"><span class="icon">📖</span>一覧</button>
+  <button data-tab="add"><span class="icon">➕</span>登録</button>
+  <button data-tab="scan"><span class="icon">📷</span>スキャン</button>
+  <button data-tab="stats"><span class="icon">📊</span>統計</button>
+</nav>
+
+<!-- 編集モーダル -->
+<div class="modal-bg" id="edit-modal">
+  <div class="modal">
+    <h2>編集</h2>
+    <input type="hidden" id="edit-id">
+    <div class="form-row"><label>ISBN</label><input type="text" id="edit-isbn"></div>
+    <div class="form-row"><label>タイトル</label><input type="text" id="edit-title"></div>
+    <div class="form-row"><label>著者</label><input type="text" id="edit-author"></div>
+    <div class="form-row"><label>著者読み</label><input type="text" id="edit-authorYomi"></div>
+    <div class="form-row"><label>出版社</label><input type="text" id="edit-publisher"></div>
+    <div class="form-row"><label>発売日</label><input type="text" id="edit-pubdate"></div>
+    <div class="form-row">
+      <label>判型</label>
+      <select id="edit-format">
+        <option value="">未指定</option>
+        <option value="単行本">単行本</option>
+        <option value="文庫">文庫</option>
+        <option value="新書">新書</option>
+        <option value="コミック">コミック</option>
+        <option value="ムック">ムック</option>
+        <option value="雑誌">雑誌</option>
+        <option value="絵本">絵本</option>
+        <option value="児童書">児童書</option>
+        <option value="大型本">大型本</option>
+        <option value="全集・双書">全集・双書</option>
+        <option value="事典">事典</option>
+        <option value="図鑑">図鑑</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>ラベル(カンマ区切り)</label>
+      <input type="text" id="edit-labels" list="label-suggestions">
+      <div id="edit-label-chips" class="label-chips-suggest"></div>
+    </div>
+    <div class="form-row">
+      <label>評価</label>
+      <div class="star-rating" id="edit-rating-stars" data-value="0">
+        <span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>メモ</label>
+      <input type="text" id="edit-memo">
+    </div>
+    <div class="form-row">
+      <div class="checkbox-row">
+        <label><input type="checkbox" id="edit-read"> 既読</label>
+        <label><input type="checkbox" id="edit-owned"> 所持</label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="btn-delete">削除</button>
+      <button class="btn secondary" id="btn-cancel">キャンセル</button>
+      <button class="btn" id="btn-update">更新</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="sync-indicator" id="sync-indicator">🔄 同期しました</div>
+
+<!-- 接続設定と通信層。画面側のコードより先に読み込む必要がある -->
+<script src="api.js"></script>
+<script>
+'use strict';
+document.documentElement.setAttribute('data-script-start', '1');
+
+// =============================================================
+// 起動時の未捕捉エラーを画面に出す
+//   初期化の途中で例外が出ると、以降の配線(データ取得を含む)が丸ごと止まり、
+//   画面は「読み込み中...」のまま無言で固まる。原因が分からなくなるので、
+//   何よりも先にハンドラを仕掛けておく。
+// =============================================================
+(function () {
+  let shown = false;
+  function showBootError(label, detail) {
+    if (shown) return;
+    shown = true;
+    try {
+      const countEl = document.getElementById('count-text');
+      if (countEl) countEl.textContent = '起動エラー';
+      let box = document.getElementById('book-list');
+      if (!box) {
+        box = document.createElement('div');
+        box.className = 'container';
+        document.body.appendChild(box);
+      }
+      box.innerHTML = '<div class="diag"><h3>起動時にエラーが発生しました</h3><pre>'
+        + String(label + '\n' + detail).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+        + '</pre></div>';
+    } catch (e) {
+      // 表示にも失敗したら諦める(これ以上できることがない)
+    }
+  }
+  window.addEventListener('error', function (e) {
+    showBootError('JavaScriptエラー', (e.message || '') + '\n' + (e.filename || '') + ' ' + (e.lineno || '') + ':' + (e.colno || ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    showBootError('未処理のPromise', String(e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+})();
+
+// スクリプトが実行されたことの目印。
+// これが出ないまま「読み込み中...」で固まるなら、スクリプト自体が動いていない。
+try {
+  const bootMark = document.getElementById('count-text');
+  if (bootMark) bootMark.textContent = '初期化中...';
+} catch (e) {
+  // 目印が置けなくても動作には影響しない
+}
+
+// ZXing(バーコード読取ライブラリ)は約250KBあり、スキャンタブを使わない限り不要。
+// 起動時に読むのをやめ、スキャン開始時に初めて取得する。
+// ★重要★ 文字列の中の連続スラッシュは、必ずバックスラッシュで逃がすこと。
+// GASは配信時、インラインスクリプトの行コメント記号以降を行末まで削除する。
+// URLをそのまま書くと "https:" で切られ、文字列が閉じずスクリプト全体が
+// 構文エラーになり、アプリが一切動かなくなる（実際に発生）。
+// test/run.js がこの形を検査している。
+const ZXING_URL = 'https:\/\/unpkg.com\/@zxing\/library@0.21.3\/umd\/index.min.js';
+let zxingLoading = null;
+
+function loadZXing_() {
+  if (typeof ZXing !== 'undefined') return Promise.resolve();
+  if (zxingLoading) return zxingLoading;
+  zxingLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = ZXING_URL;
+    s.onload = () => resolve();
+    s.onerror = () => { zxingLoading = null; reject(new Error('ZXingライブラリの読込に失敗しました')); };
+    document.head.appendChild(s);
+  });
+  return zxingLoading;
+}
+
+let allBooks = [];
+let allLabels = [];
+let currentFilter = 'all';
+let currentLabelFilter = '';
+let currentFormatFilter = '';
+let currentViewMode = 'flat'; // 'flat' or 'author'
+let currentSort = 'updated_desc';
+let collapsedAuthors = {};
+let codeReader = null;
+let scanning = false;
+let scanStream = null;
+let lastLoadedAt = 0;
+let loadWatchdog = null;
+
+// =============================================================
+// 自己診断
+//   一覧が返ってこない時に、サーバ側のどの段階で詰まっているかを画面に出す。
+//   google.script.run はタイムアウトを持たないため、呼び出しごとに自前で打ち切る。
+// =============================================================
+const DIAG_STEPS = [
+  { label: 'サーバ応答', fn: 'pingServer' },
+  { label: 'シート情報', fn: 'pingSheetInfo' },
+  { label: '全行の読み取り', fn: 'pingRawRead' },
+  { label: '行の変換(著者名・日付の正規化)', fn: 'pingMapRows' },
+  { label: 'キャッシュ', fn: 'pingCache' },
+  { label: 'ロック', fn: 'pingLock' },
+  { label: '一覧取得(getAllBooks)', fn: 'getAllBooks', args: [true] }
+];
+
+function callWithTimeout_(fn, args, ms) {
+  return new Promise(resolve => {
+    const started = Date.now();
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve({ state: 'timeout', ms: ms });
+    }, ms);
+    const runner = google.script.run
+      .withSuccessHandler(v => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ state: 'ok', ms: Date.now() - started, value: v });
+      })
+      .withFailureHandler(e => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve({ state: 'error', ms: Date.now() - started, error: (e && e.message) ? e.message : String(e) });
+      });
+    runner[fn].apply(runner, args || []);
+  });
+}
+
+function runDiagnostics_() {
+  const list = document.getElementById('book-list');
+  const countEl = document.getElementById('count-text');
+  if (countEl) countEl.textContent = '応答なし — 自己診断中';
+  if (!list) return;
+
+  const lines = [];
+  const render = (running) => {
+    list.innerHTML =
+      '<div class="diag"><h3>読み込みが返ってこないため自己診断しています</h3>' +
+      '<pre>' + escapeHtml(lines.join('\n') + (running ? '\n' + running + ' ...' : '')) + '</pre>' +
+      (running ? '' : '<button type="button" class="btn" id="btn-retry-load">再試行</button>') +
+      '</div>';
+    const retry = document.getElementById('btn-retry-load');
+    if (retry) retry.addEventListener('click', () => loadBooks(true, true));
+  };
+  render(DIAG_STEPS[0].label);
+
+  let i = 0;
+  const next = () => {
+    if (i >= DIAG_STEPS.length) { render(null); return; }
+    const step = DIAG_STEPS[i++];
+    callWithTimeout_(step.fn, step.args, 25000).then(r => {
+      let text;
+      if (r.state === 'ok') {
+        const v = (r.value && typeof r.value === 'object') ? JSON.stringify(r.value).slice(0, 160) : String(r.value);
+        text = '✓ ' + step.label + '  (' + r.ms + 'ms)  ' + (Array.isArray(r.value) ? r.value.length + '件' : v);
+      } else if (r.state === 'timeout') {
+        text = '✗ ' + step.label + '  25秒たっても応答なし  ← ここで詰まっています';
+      } else {
+        text = '✗ ' + step.label + '  (' + r.ms + 'ms)  エラー: ' + r.error;
+      }
+      lines.push(text);
+      // 詰まった段階が分かればそれ以上進めても意味がないので止める
+      if (r.state === 'timeout') { render(null); return; }
+      render(i < DIAG_STEPS.length ? DIAG_STEPS[i].label : null);
+      next();
+    });
+  };
+  next();
+}
+
+// =============================================================
+// 初期化
+// =============================================================
+function initApp() {
+  // タブ切替
+  document.querySelectorAll('nav.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // 検索(入力中は150msのデバウンス。Enterで即時)
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    let searchTimer = null;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderList, 150);
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(searchTimer);
+        searchInput.blur();
+        renderList();
+      }
+    });
+  }
+  const btnListClear = document.getElementById('btn-list-search-clear');
+  if (btnListClear) {
+    btnListClear.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      renderList();
+    });
+  }
+  document.querySelectorAll('.filter-bar button').forEach(btn => {
+    // data-filter属性を持つボタンのみ(=最初の状態フィルタバー)
+    if (!btn.hasAttribute('data-filter')) return;
+    btn.addEventListener('click', () => {
+      // 同じバー内のactiveだけ外す
+      const bar = btn.parentElement;
+      bar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      saveUiState_();
+      renderList();
+    });
+  });
+
+  // 表示モード切替
+  document.querySelectorAll('.view-mode-bar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.view-mode-bar button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentViewMode = btn.dataset.view;
+      // 著者別モード時は並び順セレクトを隠す
+      document.getElementById('sort-bar').classList.toggle('hidden', currentViewMode === 'author');
+      saveUiState_();
+      renderList();
+    });
+  });
+
+  // 並び順セレクト
+  document.getElementById('sort-select').addEventListener('change', e => {
+    currentSort = e.target.value;
+    saveUiState_();
+    renderList();
+  });
+
+  // 判型・ラベルの絞り込みは既定で畳んでおく(一覧の見え始めを下げないため)
+  const btnToggleFilters = document.getElementById('btn-toggle-filters');
+  if (btnToggleFilters) {
+    btnToggleFilters.addEventListener('click', () => {
+      setFiltersOpen_(document.getElementById('extra-filters').hidden);
+      updateScrollFades_(); // 表示された直後は幅が確定していないため測り直す
+      saveUiState_();
+    });
+  }
+
+  window.addEventListener('resize', updateScrollFades_, { passive: true });
+
+  // 表示状態(絞り込み・表示モード・並び順)を復元
+  restoreUiState_();
+
+  // 登録
+  document.getElementById('btn-lookup').addEventListener('click', lookupAndFill);
+  document.getElementById('btn-save').addEventListener('click', saveBook);
+  document.getElementById('add-isbn').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); lookupAndFill(); }
+  });
+
+  // キーワード検索
+  document.getElementById('btn-search').addEventListener('click', doSearch);
+  document.getElementById('search-query').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  });
+
+  // 編集モーダル
+  document.getElementById('btn-update').addEventListener('click', updateBookHandler);
+  document.getElementById('btn-delete').addEventListener('click', deleteBookHandler);
+  document.getElementById('btn-cancel').addEventListener('click', closeModal);
+  document.getElementById('edit-modal').addEventListener('click', e => {
+    if (e.target.id === 'edit-modal') closeModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('edit-modal').classList.contains('active')) {
+      closeModal();
+    }
+  });
+
+  // スキャナ
+  document.getElementById('btn-scan-toggle').addEventListener('click', toggleScan);
+
+  // 更新ボタン(キャッシュを無視してシートを読み直す)
+  document.getElementById('btn-refresh').addEventListener('click', () => loadBooks(true, true));
+
+  // タブ復帰時の自動更新(他端末/スプシでの変更を反映)
+  // 復帰のたびに取りに行くと往復が無駄になるため、前回取得から30秒経った時だけ更新する
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastLoadedAt > 30000) {
+      loadBooks(false);
+    }
+  });
+
+  // 接続設定が済んでいなければ、データ取得の前に設定画面を出す
+  // （ここで return してしまうと以降の初期化が飛ぶので、分岐だけにする）
+  initSetupScreen_();
+  if (window.zoshoConfig && window.zoshoConfig.isSet()) {
+    loadBooks();
+    startSyncPolling();
+  } else {
+    document.getElementById('setup-overlay').hidden = false;
+  }
+
+  // スクロールトップボタンの表示制御
+  const scrollTopBtn = document.getElementById('scroll-top-btn');
+  if (scrollTopBtn) {
+    window.addEventListener('scroll', () => {
+      scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
+    }, { passive: true });
+  }
+
+  // ダークモード初期化
+  if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+
+  // 星評価ハンドラ
+  initStarRating('add-rating-stars');
+  initStarRating('edit-rating-stars');
+
+  // CSVインポート
+  const csvDrop = document.getElementById('csv-drop');
+  const csvFile = document.getElementById('csv-file');
+  if (csvDrop) {
+    csvDrop.addEventListener('dragover', e => { e.preventDefault(); csvDrop.classList.add('dragover'); });
+    csvDrop.addEventListener('dragleave', () => { csvDrop.classList.remove('dragover'); });
+    csvDrop.addEventListener('drop', e => { e.preventDefault(); csvDrop.classList.remove('dragover'); handleCsvFile(e.dataTransfer.files[0]); });
+  }
+  if (csvFile) {
+    csvFile.addEventListener('change', () => { if (csvFile.files[0]) handleCsvFile(csvFile.files[0]); });
+  }
+}
+
+// 初期化の起動。
+// GASのWebアプリはiframeに読み込まれる都合で、このスクリプトが走る時点で
+// すでに DOMContentLoaded が発火済みのことがある。その場合 addEventListener で
+// 待っても二度と呼ばれず、タブもデータ取得も配線されないまま画面が固まる。
+// 構築済みなら即座に、まだなら発火時に初期化する。
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+
+// ここまで到達したことの目印（途中で止まった場合と区別するため）
+document.documentElement.setAttribute('data-script-end', '1');
+
+// 画面の読み込みを速くするためのキャッシュ（データ通信には関与しない）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      // 登録できなくてもアプリは通常どおり動く
+    });
+  });
+}
+
+// =============================================================
+// タブ切替
+// =============================================================
+function switchTab(tab) {
+  document.querySelectorAll('nav.tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => {
+    c.classList.toggle('active', c.id === 'tab-' + tab);
+  });
+  if (tab !== 'scan' && scanning) stopScan();
+  // スキャンタブを開いた時点でライブラリを読み込んでおく。
+  // ボタンを押してから読むと、カメラ要求がユーザー操作から切り離される。
+  if (tab === 'scan') loadZXing_().catch(() => {});
+  if (tab === 'stats') loadStats();
+}
+
+// =============================================================
+// データ取得・描画
+// =============================================================
+function loadBooks(showToast, force) {
+  const refreshBtn = document.getElementById('btn-refresh');
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('spinning');
+  }
+  // 応答も失敗通知も返ってこないまま「読み込み中...」で固まることがあるため、
+  // 一定時間で自己診断に切り替えて、どの段階で詰まっているかを画面に出す
+  clearTimeout(loadWatchdog);
+  loadWatchdog = setTimeout(() => {
+    if (allBooks.length === 0) runDiagnostics_();
+  }, 15000);
+  const done = () => {
+    clearTimeout(loadWatchdog);
+    if (refreshBtn) {
+      refreshBtn.disabled = false;
+      refreshBtn.classList.remove('spinning');
+    }
+  };
+  google.script.run
+    .withSuccessHandler(books => {
+      allBooks = books;
+      lastLoadedAt = Date.now();
+      rebuildLabelsAndFilters();
+      renderList();
+      done();
+      if (showToast) toast('最新化しました');
+    })
+    .withFailureHandler(err => {
+      done();
+      // トーストは数秒で消えてしまい、原因が分からないまま
+      // 「読み込み中...」が残り続けるので、画面にも出したままにする
+      const msg = (err && err.message) ? err.message : String(err);
+      const countEl = document.getElementById('count-text');
+      if (countEl) countEl.textContent = '読み込み失敗';
+      const list = document.getElementById('book-list');
+      if (list && allBooks.length === 0) {
+        list.innerHTML =
+          '<div class="empty">読み込みに失敗しました' +
+          '<div class="error-detail">' + escapeHtml(msg) + '</div>' +
+          '<button type="button" class="btn" id="btn-retry-load">再試行</button></div>';
+        const retry = document.getElementById('btn-retry-load');
+        if (retry) retry.addEventListener('click', () => loadBooks(true, true));
+      }
+      toast('読み込み失敗: ' + msg, true);
+    })
+    .getAllBooks(!!force);
+}
+
+// =============================================================
+// 表示状態の保存・復元(絞り込み・表示モード・並び順)
+// =============================================================
+const UI_STATE_KEY = 'bookAppUiState';
+
+/** 判型・ラベルの絞り込み欄の開閉 */
+function setFiltersOpen_(open) {
+  const panel = document.getElementById('extra-filters');
+  const btn = document.getElementById('btn-toggle-filters');
+  if (!panel || !btn) return;
+  panel.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+/**
+ * 横スクロールするフィルタ行の端フェードを、実際に溢れている行にだけ付ける。
+ * 収まりきっている行にフェードを掛けると、最後のボタンが薄れて押しにくく見える。
+ */
+function updateScrollFades_() {
+  document.querySelectorAll('.filter-bar.scroll-x').forEach(bar => {
+    const overflowing = bar.scrollWidth - bar.clientWidth > 2;
+    const atEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4;
+    bar.classList.toggle('fade', overflowing && !atEnd);
+    if (!bar.dataset.fadeBound) {
+      bar.dataset.fadeBound = '1';
+      bar.addEventListener('scroll', () => updateScrollFades_(), { passive: true });
+    }
+  });
+}
+
+/** 絞り込みが効いている数をボタンのバッジに出す(畳んでいても効きが分かるように) */
+function updateFilterCount_() {
+  const badge = document.getElementById('filter-count');
+  if (!badge) return;
+  const n = (currentFormatFilter ? 1 : 0) + (currentLabelFilter ? 1 : 0);
+  badge.textContent = n;
+  badge.hidden = n === 0;
+}
+
+function saveUiState_() {
+  try {
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify({
+      filter: currentFilter,
+      view: currentViewMode,
+      sort: currentSort,
+      format: currentFormatFilter,
+      label: currentLabelFilter,
+      filtersOpen: !document.getElementById('extra-filters').hidden
+    }));
+  } catch (e) {
+    // プライベートモード等で保存できなくても動作に影響はない
+  }
+}
+
+function restoreUiState_() {
+  let st = null;
+  try {
+    st = JSON.parse(localStorage.getItem(UI_STATE_KEY) || 'null');
+  } catch (e) {
+    st = null;
+  }
+  if (!st) return;
+
+  if (st.filter) {
+    const btn = document.querySelector('.filter-bar button[data-filter="' + st.filter + '"]');
+    if (btn) {
+      currentFilter = st.filter;
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  }
+  if (st.view) {
+    const btn = document.querySelector('.view-mode-bar button[data-view="' + st.view + '"]');
+    if (btn) {
+      currentViewMode = st.view;
+      document.querySelectorAll('.view-mode-bar button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('sort-bar').classList.toggle('hidden', currentViewMode === 'author');
+    }
+  }
+  if (st.sort) {
+    const sel = document.getElementById('sort-select');
+    if (sel && sel.querySelector('option[value="' + st.sort + '"]')) {
+      currentSort = st.sort;
+      sel.value = st.sort;
+    }
+  }
+  // 判型・ラベルは値だけ戻す(ボタンのactive付けは rebuildLabelsAndFilters が行う)
+  if (typeof st.format === 'string') currentFormatFilter = st.format;
+  if (typeof st.label === 'string') currentLabelFilter = st.label;
+  // 効いている絞り込みがあるなら、畳んだままにせず開いて見せる
+  setFiltersOpen_(!!st.filtersOpen || !!currentFormatFilter || !!currentLabelFilter);
+  updateFilterCount_();
+}
+
+/**
+ * 全ラベル・全判型を集計してフィルタバーとサジェストを再構築
+ */
+function rebuildLabelsAndFilters() {
+  buildSearchIndex_();
+
+  // ラベル集計
+  const labelCounter = {};
+  const formatCounter = {};
+  let noLabelCount = 0;
+  let noFormatCount = 0;
+  allBooks.forEach(b => {
+    const labels = b.labels || [];
+    if (labels.length === 0) {
+      noLabelCount++;
+    } else {
+      labels.forEach(l => {
+        labelCounter[l] = (labelCounter[l] || 0) + 1;
+      });
+    }
+    if (b.format) {
+      formatCounter[b.format] = (formatCounter[b.format] || 0) + 1;
+    } else {
+      noFormatCount++;
+    }
+  });
+  allLabels = Object.keys(labelCounter)
+    .map(name => ({ name: name, count: labelCounter[name] }))
+    .sort((a, b) => b.count - a.count);
+
+  // 判型フィルタバー
+  const formats = Object.keys(formatCounter).sort((a, b) => formatCounter[b] - formatCounter[a]);
+  const formatBar = document.getElementById('format-filter-bar');
+  if (formats.length === 0 && noFormatCount === 0) {
+    formatBar.innerHTML = '';
+  } else {
+    let html = '<button data-format="" class="' + (currentFormatFilter === '' ? 'active' : '') + '">判型:すべて</button>';
+    html += formats.map(f => `<button data-format="${escapeHtml(f)}" class="${currentFormatFilter === f ? 'active' : ''}">${escapeHtml(f)}(${formatCounter[f]})</button>`).join('');
+    if (noFormatCount > 0) {
+      html += `<button data-format="__none__" class="filter-none ${currentFormatFilter === '__none__' ? 'active' : ''}">判型未設定(${noFormatCount})</button>`;
+    }
+    formatBar.innerHTML = html;
+    formatBar.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFormatFilter = btn.dataset.format;
+        formatBar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFilterCount_();
+        saveUiState_();
+        renderList();
+      });
+    });
+  }
+
+  // ラベルフィルタバー
+  const labelBar = document.getElementById('label-filter-bar');
+  if (allLabels.length === 0 && noLabelCount === 0) {
+    labelBar.innerHTML = '';
+  } else {
+    let html = '<button data-label="" class="' + (currentLabelFilter === '' ? 'active' : '') + '">ラベル:すべて</button>';
+    html += allLabels.map(l => `<button data-label="${escapeHtml(l.name)}" class="${currentLabelFilter === l.name ? 'active' : ''}">🏷 ${escapeHtml(l.name)}(${l.count})</button>`).join('');
+    if (noLabelCount > 0) {
+      html += `<button data-label="__none__" class="filter-none ${currentLabelFilter === '__none__' ? 'active' : ''}">ラベル未設定(${noLabelCount})</button>`;
+    }
+    labelBar.innerHTML = html;
+    labelBar.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentLabelFilter = btn.dataset.label;
+        labelBar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFilterCount_();
+        saveUiState_();
+        renderList();
+      });
+    });
+  }
+
+  // datalistサジェスト更新
+  const dl = document.getElementById('label-suggestions');
+  if (dl) {
+    dl.innerHTML = allLabels.map(l => `<option value="${escapeHtml(l.name)}">`).join('');
+  }
+
+  // 既存ラベルチップ(フォーム下)
+  renderLabelChips('add-label-chips', 'add-labels');
+  renderLabelChips('edit-label-chips', 'edit-labels');
+
+  updateFilterCount_();
+  updateScrollFades_();
+}
+
+function renderLabelChips(chipsId, inputId) {
+  const container = document.getElementById(chipsId);
+  if (!container) return;
+  if (allLabels.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = '<div style="font-size:10px;color:#999;width:100%;margin-bottom:2px;">既存ラベルから追加:</div>' +
+    allLabels.slice(0, 20).map(l => `<span class="chip" data-label="${escapeHtml(l.name)}">+ ${escapeHtml(l.name)}</span>`).join('');
+  container.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const input = document.getElementById(inputId);
+      const cur = input.value.trim();
+      const labels = cur ? cur.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const lbl = chip.dataset.label;
+      if (labels.indexOf(lbl) === -1) {
+        labels.push(lbl);
+        input.value = labels.join(', ');
+      }
+    });
+  });
+}
+
+function renderList() {
+  const searchEl = document.getElementById('search-input') || document.getElementById('search');
+  const qRaw = (searchEl ? searchEl.value : '').toLowerCase().trim();
+  const q = normalizeForSearch_(qRaw);
+  let books = allBooks.slice();
+
+  if (currentFilter === 'unread') books = books.filter(b => !b.read);
+  else if (currentFilter === 'read') books = books.filter(b => b.read);
+  else if (currentFilter === 'owned') books = books.filter(b => b.owned);
+  else if (currentFilter === 'notowned') books = books.filter(b => !b.owned);
+
+  if (currentFormatFilter === '__none__') {
+    books = books.filter(b => !b.format);
+  } else if (currentFormatFilter) {
+    books = books.filter(b => b.format === currentFormatFilter);
+  }
+  if (currentLabelFilter === '__none__') {
+    books = books.filter(b => !b.labels || b.labels.length === 0);
+  } else if (currentLabelFilter) {
+    books = books.filter(b => (b.labels || []).indexOf(currentLabelFilter) >= 0);
+  }
+
+  if (q) {
+    // 検索対象は蔵書1件につき1本の文字列にまとめてある(buildSearchIndex_)。
+    // 入力のたびに全件×6項目を正規化し直さずに済む。
+    books = books.filter(b => b._sx.includes(q) || (b.isbn && b.isbn.includes(qRaw)));
+  }
+
+  document.getElementById('count-text').textContent = books.length + ' 件 / 全 ' + allBooks.length + ' 件';
+
+  const list = document.getElementById('book-list');
+  if (books.length === 0) {
+    list.innerHTML = '<div class="empty">該当する本がありません</div>';
+    return;
+  }
+
+  if (currentViewMode === 'author') {
+    renderAuthorView(list, books);
+  } else {
+    renderFlatView(list, books);
+  }
+}
+
+function renderFlatView(list, books) {
+  sortBooks_(books, currentSort);
+  const html = books.map(b => bookCardHtml(b)).join('');
+  list.innerHTML = html;
+  list.querySelectorAll('.book-card').forEach(card => {
+    card.addEventListener('click', () => openEditModal(card.dataset.id));
+  });
+}
+
+/**
+ * 本の配列を指定キーで並び替える(in-place)
+ */
+function sortBooks_(books, sortKey) {
+  const cmp = {
+    updated_desc: (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''),
+    updated_asc:  (a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''),
+    created_desc: (a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''),
+    created_asc:  (a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''),
+    title_asc:    (a, b) => (a.title || '').localeCompare(b.title || '', 'ja'),
+    title_desc:   (a, b) => (b.title || '').localeCompare(a.title || '', 'ja'),
+    author_asc:   (a, b) => (a.authorYomi || a.author || '').localeCompare(b.authorYomi || b.author || '', 'ja'),
+    author_desc:  (a, b) => (b.authorYomi || b.author || '').localeCompare(a.authorYomi || a.author || '', 'ja'),
+    pubdate_desc: (a, b) => (b.pubdate || '').localeCompare(a.pubdate || ''),
+    pubdate_asc:  (a, b) => (a.pubdate || '').localeCompare(b.pubdate || '')
+  };
+  books.sort(cmp[sortKey] || cmp.updated_desc);
+}
+
+function renderAuthorView(list, books) {
+  // 著者でグルーピング(著者名そのままをキーに使用、共著は1グループとして扱う)
+  const groups = {};
+  books.forEach(b => {
+    const key = b.author || '(著者未設定)';
+    if (!groups[key]) {
+      groups[key] = { author: key, authorYomi: b.authorYomi || '', books: [] };
+    }
+    groups[key].books.push(b);
+    // 著者読みが空のブックがあった後、空でないブックがあれば上書き
+    if (!groups[key].authorYomi && b.authorYomi) {
+      groups[key].authorYomi = b.authorYomi;
+    }
+  });
+
+  // 著者を著者読みでソート(なければ著者名で)
+  const sortedAuthors = Object.values(groups).sort((a, b) => {
+    const ka = (a.authorYomi || a.author || '').toLowerCase();
+    const kb = (b.authorYomi || b.author || '').toLowerCase();
+    return ka.localeCompare(kb, 'ja');
+  });
+
+  // 各グループ内では発売日新しい順
+  sortedAuthors.forEach(g => {
+    g.books.sort((a, b) => (b.pubdate || '').localeCompare(a.pubdate || ''));
+  });
+
+  const controlsHtml = `
+    <div class="group-controls">
+      <button id="btn-expand-all">すべて展開</button>
+      <button id="btn-collapse-all">すべて折りたたみ</button>
+      <span style="margin-left:auto;color:#666;align-self:center">${sortedAuthors.length} 人の著者</span>
+    </div>
+  `;
+
+  const groupsHtml = sortedAuthors.map(g => {
+    const isCollapsed = collapsedAuthors[g.author] === true;
+    const cardsHtml = g.books.map(b => bookCardHtml(b)).join('');
+    return `
+      <div class="author-group">
+        <div class="author-header ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}">
+          <span class="arrow">▼</span>
+          <span class="author-name">${escapeHtml(g.author)}${g.authorYomi ? '<span class="author-yomi">' + escapeHtml(g.authorYomi) + '</span>' : ''}</span>
+          <span class="author-count">${g.books.length}冊</span>
+        </div>
+        <div class="author-books ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.innerHTML = controlsHtml + groupsHtml;
+
+  // 折りたたみ動作
+  list.querySelectorAll('.author-header').forEach(h => {
+    h.addEventListener('click', () => {
+      const author = h.dataset.author;
+      const isCollapsed = h.classList.toggle('collapsed');
+      const booksEl = list.querySelector('.author-books[data-author="' + cssEscape(author) + '"]');
+      if (booksEl) booksEl.classList.toggle('collapsed', isCollapsed);
+      collapsedAuthors[author] = isCollapsed;
+    });
+  });
+
+  // 全展開・全折りたたみ
+  document.getElementById('btn-expand-all').addEventListener('click', () => {
+    sortedAuthors.forEach(g => { collapsedAuthors[g.author] = false; });
+    renderList();
+  });
+  document.getElementById('btn-collapse-all').addEventListener('click', () => {
+    sortedAuthors.forEach(g => { collapsedAuthors[g.author] = true; });
+    renderList();
+  });
+
+  // カードクリック
+  list.querySelectorAll('.book-card').forEach(card => {
+    card.addEventListener('click', e => {
+      e.stopPropagation();
+      openEditModal(card.dataset.id);
+    });
+  });
+}
+
+/** 表紙画像のURL。openBDのカバーはISBNから引ける(無い本も多いので失敗時は絵文字に差し替える) */
+function coverUrl_(isbn) {
+  const clean = String(isbn || '').replace(/[^0-9Xx]/g, '');
+  // 連続スラッシュは // と書く（理由は ZXING_URL の注記を参照）
+  // 連続スラッシュの書き方は ZXING_URL の注記を参照
+  return clean.length === 13 || clean.length === 10 ? 'https:\/\/cover.openbd.jp\/' + clean + '.jpg' : '';
+}
+
+function bookCardHtml(b) {
+  // 出すのは「例外」だけ。既読・所持は既定なのでバッジで場所を取らない
+  const badges = [];
+  if (!b.read) badges.push('<span class="badge unread">未読</span>');
+  else badges.push('<span class="badge read">✓</span>');
+  if (!b.owned) badges.push('<span class="badge notowned">未所持</span>');
+  if (b.format) badges.push('<span class="badge format">' + escapeHtml(b.format) + '</span>');
+  if (b.rating > 0) badges.push('<span class="badge rating">★' + b.rating + '</span>');
+
+  // ラベルは2つまで。残りは件数だけ示して行の折り返しを防ぐ
+  const labels = b.labels || [];
+  labels.slice(0, 2).forEach(l => badges.push('<span class="badge label">🏷 ' + escapeHtml(l) + '</span>'));
+  if (labels.length > 2) badges.push('<span class="badge more">+' + (labels.length - 2) + '</span>');
+
+  const meta = [b.author, b.publisher, b.pubdate].filter(Boolean).map(escapeHtml).join(' · ');
+  const memo = b.memo
+    ? '<div class="card-memo">📝 ' + escapeHtml(b.memo) + '</div>'
+    : '';
+
+  const url = coverUrl_(b.isbn);
+  const cover = url
+    ? `<div class="cover"><img src="${escapeHtml(url)}" alt="" loading="lazy" onerror="this.parentNode.textContent='📖'"></div>`
+    : '<div class="cover">📖</div>';
+
+  return `
+    <div class="book-card" data-id="${escapeHtml(b.id)}">
+      ${cover}
+      <div class="body">
+        <div class="title">${escapeHtml(b.title || '(無題)')}</div>
+        <div class="meta">${meta}</div>
+        <div class="badges">${badges.join('')}</div>
+        ${memo}
+      </div>
+    </div>
+  `;
+}
+
+// =============================================================
+// 接続設定
+// =============================================================
+function initSetupScreen_() {
+  const btn = document.getElementById('setup-save');
+  if (!btn) return;
+  const idEl = document.getElementById('setup-id');
+  const keyEl = document.getElementById('setup-key');
+  const msg = document.getElementById('setup-msg');
+
+  const current = window.zoshoConfig && window.zoshoConfig.get();
+  if (current) {
+    idEl.value = current.id;
+    keyEl.value = current.key;
+  }
+
+  btn.addEventListener('click', () => {
+    msg.className = 'setup-msg';
+    if (!window.zoshoConfig.save(idEl.value, keyEl.value)) {
+      msg.className = 'setup-msg error';
+      msg.textContent = 'URLと接続キーの両方を入力してください';
+      return;
+    }
+    btn.disabled = true;
+    msg.textContent = '接続を確認しています…';
+    window.zoshoConfig.test()
+      .then(() => {
+        msg.className = 'setup-msg ok';
+        msg.textContent = '接続できました';
+        document.getElementById('setup-overlay').hidden = true;
+        btn.disabled = false;
+        loadBooks(true, true);
+        startSyncPolling();
+      })
+      .catch(err => {
+        btn.disabled = false;
+        msg.className = 'setup-msg error';
+        msg.textContent = '接続できませんでした: ' + (err && err.message ? err.message : err);
+      });
+  });
+}
+
+/** 設定をやり直す（ヘッダーの📊を長押しした時などに使う） */
+function resetConfig_() {
+  if (!confirm('接続設定を消去して、入力し直しますか?')) return;
+  window.zoshoConfig.clear();
+  location.reload();
+}
+
+/**
+ * 検索インデックスの構築。
+ * タイトル・著者・著者読み・出版社・ラベルを正規化して1本の文字列(_sx)にまとめ、
+ * 各本に持たせておく。データが変わったときだけ作り直す。
+ * 区切りに制御文字(U+0001)を挟むのは、隣り合う項目が繋がって誤ヒットするのを防ぐため。
+ */
+function buildSearchIndex_() {
+  const SEP = String.fromCharCode(1);
+  allBooks.forEach(b => {
+    b._sx = normalizeForSearch_([
+      b.title || '',
+      b.author || '',
+      b.authorYomi || '',
+      b.publisher || '',
+      (b.labels || []).join(SEP)
+    ].join(SEP));
+  });
+}
+
+/**
+ * 検索用文字列正規化:
+ *   - 半角/全角スペース、タブを削除
+ *   - 小文字化
+ *   - 全角英数字を半角化
+ *   これにより「夏目漱石」「夏目 漱石」「夏目　漱石」を同一視
+ */
+function normalizeForSearch_(s) {
+  if (!s) return '';
+  return String(s)
+    .toLowerCase()
+    .replace(/[\s　]+/g, '')
+    .replace(/[\uFF01-\uFF5E]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+}
+
+/**
+ * CSS属性セレクタ用のエスケープ(querySelectorで使用)
+ */
+function cssEscape(s) {
+  return String(s).replace(/(["\\])/g, '\\$1');
+}
+
+// =============================================================
+// 登録
+// =============================================================
+function lookupAndFill() {
+  const isbn = document.getElementById('add-isbn').value.trim();
+  if (!isbn) { toast('ISBNを入力してください', true); return; }
+
+  const btn = document.getElementById('btn-lookup');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>取得中';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.textContent = '取得';
+      if (res.ok) {
+        document.getElementById('add-title').value = res.book.title || '';
+        document.getElementById('add-author').value = res.book.author || '';
+        document.getElementById('add-authorYomi').value = res.book.authorYomi || '';
+        document.getElementById('add-publisher').value = res.book.publisher || '';
+        document.getElementById('add-pubdate').value = res.book.pubdate || '';
+        toast('取得成功 (' + res.book.source + ')');
+      } else {
+        toast(res.error, true);
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = '取得';
+      toast('エラー: ' + err.message, true);
+    })
+    .lookupIsbn(isbn);
+}
+
+function saveBook() {
+  const book = {
+    isbn: document.getElementById('add-isbn').value.trim(),
+    title: document.getElementById('add-title').value.trim(),
+    author: document.getElementById('add-author').value.trim(),
+    authorYomi: document.getElementById('add-authorYomi').value.trim(),
+    publisher: document.getElementById('add-publisher').value.trim(),
+    pubdate: document.getElementById('add-pubdate').value.trim(),
+    format: document.getElementById('add-format').value,
+    labels: document.getElementById('add-labels').value.trim(),
+    read: document.getElementById('add-read').checked,
+    owned: document.getElementById('add-owned').checked,
+    rating: getStarValue('add-rating-stars'),
+    memo: document.getElementById('add-memo').value.trim()
+  };
+  if (!book.title) { toast('タイトルは必須です', true); return; }
+
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>登録中';
+
+  // ISBN重複チェック(ISBNがある場合のみ)
+  const doSave = () => {
+    google.script.run
+      .withSuccessHandler(b => {
+        btn.disabled = false;
+        btn.textContent = '登録';
+        allBooks.push(b);
+        rebuildLabelsAndFilters();
+        syncEditTime_();
+        toast('登録しました');
+        clearAddForm();
+        switchTab('list');
+        renderList();
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.textContent = '登録';
+        toast('登録失敗: ' + err.message, true);
+      })
+      .addBook(book);
+  };
+
+  if (book.isbn) {
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.duplicate) {
+          btn.disabled = false;
+          btn.textContent = '登録';
+          if (confirm('ISBN ' + book.isbn + ' は既に「' + res.title + '」として登録済みです。\n\nそれでも登録しますか?')) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>登録中';
+            doSave();
+          }
+        } else {
+          doSave();
+        }
+      })
+      .withFailureHandler(() => { doSave(); })
+      .checkDuplicateIsbn(book.isbn);
+  } else {
+    doSave();
+  }
+}
+
+function clearAddForm() {
+  ['add-isbn','add-title','add-author','add-authorYomi','add-publisher','add-pubdate','add-labels','add-memo'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('add-format').value = '';
+  document.getElementById('add-read').checked = false;
+  document.getElementById('add-owned').checked = true;
+  setStarValue('add-rating-stars', 0);
+  document.getElementById('search-query').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  const backBtn = document.getElementById('btn-back-to-results');
+  if (backBtn) backBtn.style.display = 'none';
+}
+
+// =============================================================
+// キーワード検索(Google Books)
+// =============================================================
+function doSearch() {
+  const q = document.getElementById('search-query').value.trim();
+  if (!q) { toast('検索語を入力してください', true); return; }
+
+  const btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>検索中';
+  document.getElementById('search-results').innerHTML = '';
+
+  google.script.run
+    .withSuccessHandler(res => {
+      btn.disabled = false;
+      btn.textContent = '検索';
+      if (!res.ok) { toast(res.error, true); return; }
+      renderSearchResults(res.items, res.source, res.note);
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = '検索';
+      toast('検索エラー: ' + err.message, true);
+    })
+    .searchBooks(q);
+}
+
+function renderSearchResults(items, sourceName, note) {
+  const container = document.getElementById('search-results');
+  const backBtn = document.getElementById('btn-back-to-results');
+  if (!items || items.length === 0) {
+    const msg = note
+      ? '該当する本が見つかりませんでした<br><span style="font-size:10px;color:#c62828">' + escapeHtml(note) + '</span>'
+      : '該当する本が見つかりませんでした';
+    container.innerHTML = '<div class="empty" style="padding:16px">' + msg + '</div>';
+    if (backBtn) backBtn.style.display = 'none';
+    return;
+  }
+
+  window._searchItems = items;
+  if (backBtn) backBtn.style.display = '';
+
+  const headerHtml = sourceName
+    ? `<div class="search-results-header">
+         <span style="font-size:11px;color:#666;">${items.length}件ヒット (ソース: ${escapeHtml(sourceName)})</span>
+         <button type="button" class="btn-mini" onclick="document.getElementById('add-title').scrollIntoView({behavior:'smooth',block:'center'});">⬇ フォームへ</button>
+       </div>`
+    : '';
+
+  const html = items.map((b, i) => `
+    <div class="search-result" data-idx="${i}" id="search-result-${i}">
+      ${b.thumbnail
+        ? `<img class="thumb" src="${escapeHtml(b.thumbnail)}" alt="" onerror="this.outerHTML='<div class=\\'thumb-placeholder\\'>📖</div>'">`
+        : `<div class="thumb-placeholder">📖</div>`}
+      <div class="info">
+        <div class="t">${escapeHtml(b.title || '(無題)')}</div>
+        <div class="m">
+          ${escapeHtml(b.author || '')}
+          ${b.publisher ? '<br>' + escapeHtml(b.publisher) : ''}
+          ${b.pubdate ? ' / ' + escapeHtml(b.pubdate) : ''}
+          ${b.format ? ' <span style="color:#5e35b1">[' + escapeHtml(b.format) + ']</span>' : ''}
+          ${b.isbn ? '<br>ISBN: ' + escapeHtml(b.isbn) : '<br><span style="color:#c62828">ISBNなし</span>'}
+        </div>
+      </div>
+    </div>
+  `).join('');
+  container.innerHTML = headerHtml + html;
+
+  container.querySelectorAll('.search-result').forEach(el => {
+    el.addEventListener('click', () => selectSearchResult(Number(el.dataset.idx)));
+  });
+}
+
+function selectSearchResult(idx) {
+  const b = window._searchItems && window._searchItems[idx];
+  if (!b) return;
+
+  // フォームに値を設定(検索結果に含まれる値をそのまま使用)
+  document.getElementById('add-isbn').value = b.isbn || '';
+  document.getElementById('add-title').value = b.title || '';
+  document.getElementById('add-author').value = b.author || '';
+  document.getElementById('add-authorYomi').value = b.authorYomi || '';
+  document.getElementById('add-publisher').value = b.publisher || '';
+  document.getElementById('add-pubdate').value = b.pubdate || '';
+  document.getElementById('add-format').value = b.format || '';
+
+  toast('書誌情報を取得しました');
+
+  // 選択中の検索結果カードを視覚的に強調(検索結果は残したまま)
+  document.querySelectorAll('#search-results .search-result').forEach(el => {
+    el.classList.toggle('selected', Number(el.dataset.idx) === idx);
+  });
+
+  // フォーム側にスクロール
+  document.getElementById('add-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // 著者読みが取得できていない & ISBN付きならopenBDで補完
+  if (b.isbn && !b.authorYomi) {
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.ok && res.book.source === 'openBD') {
+          if (res.book.authorYomi) {
+            document.getElementById('add-authorYomi').value = res.book.authorYomi;
+            toast('著者読みを補完しました');
+          }
+        }
+      })
+      .withFailureHandler(() => {
+        // 補完失敗は無視
+      })
+      .lookupIsbn(b.isbn);
+  }
+}
+
+// =============================================================
+// 編集
+// =============================================================
+function openEditModal(id) {
+  const b = allBooks.find(x => x.id === id);
+  if (!b) return;
+  document.getElementById('edit-id').value = b.id;
+  document.getElementById('edit-isbn').value = b.isbn || '';
+  document.getElementById('edit-title').value = b.title || '';
+  document.getElementById('edit-author').value = b.author || '';
+  document.getElementById('edit-authorYomi').value = b.authorYomi || '';
+  document.getElementById('edit-publisher').value = b.publisher || '';
+  document.getElementById('edit-pubdate').value = b.pubdate || '';
+  document.getElementById('edit-format').value = b.format || '';
+  document.getElementById('edit-labels').value = (b.labels || []).join(', ');
+  setStarValue('edit-rating-stars', b.rating || 0);
+  document.getElementById('edit-memo').value = b.memo || '';
+  document.getElementById('edit-read').checked = b.read;
+  document.getElementById('edit-owned').checked = b.owned;
+  document.getElementById('edit-modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('active');
+}
+
+function updateBookHandler() {
+  const book = {
+    id: document.getElementById('edit-id').value,
+    isbn: document.getElementById('edit-isbn').value.trim(),
+    title: document.getElementById('edit-title').value.trim(),
+    author: document.getElementById('edit-author').value.trim(),
+    authorYomi: document.getElementById('edit-authorYomi').value.trim(),
+    publisher: document.getElementById('edit-publisher').value.trim(),
+    pubdate: document.getElementById('edit-pubdate').value.trim(),
+    format: document.getElementById('edit-format').value,
+    labels: document.getElementById('edit-labels').value.trim(),
+    read: document.getElementById('edit-read').checked,
+    owned: document.getElementById('edit-owned').checked,
+    rating: getStarValue('edit-rating-stars'),
+    memo: document.getElementById('edit-memo').value.trim()
+  };
+  if (!book.title) { toast('タイトルは必須です', true); return; }
+
+  google.script.run
+    .withSuccessHandler(b => {
+      const idx = allBooks.findIndex(x => x.id === b.id);
+      if (idx >= 0) allBooks[idx] = b;
+      rebuildLabelsAndFilters();
+      syncEditTime_();
+      toast('更新しました');
+      closeModal();
+      renderList();
+    })
+    .withFailureHandler(err => toast('更新失敗: ' + err.message, true))
+    .updateBook(book);
+}
+
+function deleteBookHandler() {
+  if (!confirm('この本を削除しますか?')) return;
+  const id = document.getElementById('edit-id').value;
+  google.script.run
+    .withSuccessHandler(() => {
+      allBooks = allBooks.filter(x => x.id !== id);
+      rebuildLabelsAndFilters();
+      syncEditTime_();
+      toast('削除しました');
+      closeModal();
+      renderList();
+    })
+    .withFailureHandler(err => toast('削除失敗: ' + err.message, true))
+    .deleteBook(id);
+}
+
+// =============================================================
+// バーコードスキャン
+// =============================================================
+function toggleScan() {
+  if (scanning) stopScan();
+  else startScan();
+}
+
+function scanFail_(text, err) {
+  const detail = err ? '（' + (err.name || '') + (err.message ? ': ' + err.message : '') + '）' : '';
+  document.getElementById('scan-msg').textContent = text + detail;
+  document.getElementById('btn-scan-toggle').textContent = 'スキャン開始';
+  scanning = false;
+}
+
+function startScan() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    scanFail_('このブラウザはカメラに対応していません');
+    return;
+  }
+  document.getElementById('scan-msg').textContent = 'カメラを起動しています...';
+
+  // カメラの要求は「ボタンを押した直後」に出す必要がある。
+  // ライブラリの読込を待ってから呼ぶと操作との結び付きが切れ、
+  // iOSでは許可ダイアログが出ないまま失敗する。だから先にカメラを取る。
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' } },
+    audio: false
+  })
+    .then(stream => {
+      scanStream = stream;
+      return loadZXing_().then(() => startScanWithStream_(stream));
+    })
+    .catch(err => {
+      if (err && err.name === 'NotAllowedError') {
+        scanFail_('カメラの使用が許可されませんでした。ブラウザの設定で許可してください');
+      } else if (err && err.name === 'NotFoundError') {
+        scanFail_('使えるカメラが見つかりませんでした');
+      } else {
+        scanFail_('カメラを起動できませんでした', err);
+      }
+    });
+}
+
+function startScanWithStream_(stream) {
+  const video = document.getElementById('scanner-video');
+  codeReader = new ZXing.BrowserMultiFormatReader();
+
+  const onResult = (result) => {
+    if (!result) return;
+    const code = result.getText();
+    // ISBN(EAN-13で978/979始まり)のみ受け付け
+    if (/^97[89]\d{10}$/.test(code)) {
+      stopScan();
+      handleScannedIsbn(code);
+    }
+  };
+
+  const started = () => {
+    scanning = true;
+    document.getElementById('btn-scan-toggle').textContent = 'スキャン停止';
+    document.getElementById('scan-msg').textContent = '本のバーコード(ISBN)を枠内に映してください';
+  };
+
+  try {
+    if (typeof codeReader.decodeFromStream === 'function') {
+      // 取得済みのカメラ映像をそのまま渡す（二重にカメラを開かない）
+      codeReader.decodeFromStream(stream, video, onResult).catch(err => scanFail_('読み取りを開始できませんでした', err));
+      started();
+    } else {
+      // 古いライブラリ向け。こちらは内部でカメラを開き直す
+      stream.getTracks().forEach(t => t.stop());
+      scanStream = null;
+      codeReader.decodeFromVideoDevice(null, video, onResult);
+      started();
+    }
+  } catch (err) {
+    scanFail_('読み取りを開始できませんでした', err);
+  }
+}
+
+function stopScan() {
+  if (codeReader) {
+    try { codeReader.reset(); } catch (e) {}
+    codeReader = null;
+  }
+  if (scanStream) {
+    try { scanStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+    scanStream = null;
+  }
+  scanning = false;
+  document.getElementById('btn-scan-toggle').textContent = 'スキャン開始';
+  document.getElementById('scan-msg').textContent = 'スキャンを停止しました';
+}
+
+function handleScannedIsbn(isbn) {
+  toast('読取: ' + isbn);
+  document.getElementById('add-isbn').value = isbn;
+  switchTab('add');
+  setTimeout(() => lookupAndFill(), 300);
+}
+
+// =============================================================
+// ユーティリティ
+// =============================================================
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('error', !!isError);
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// =============================================================
+// 星評価
+// =============================================================
+function initStarRating(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', () => {
+      const v = Number(star.dataset.v);
+      const cur = Number(el.dataset.value) || 0;
+      // 同じ星をクリックしたらクリア
+      el.dataset.value = (v === cur) ? 0 : v;
+      updateStarDisplay(el);
+    });
+  });
+  updateStarDisplay(el);
+}
+function getStarValue(containerId) {
+  const el = document.getElementById(containerId);
+  return el ? (Number(el.dataset.value) || 0) : 0;
+}
+function setStarValue(containerId, val) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.dataset.value = val || 0;
+  updateStarDisplay(el);
+}
+function updateStarDisplay(el) {
+  const v = Number(el.dataset.value) || 0;
+  el.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('filled', Number(s.dataset.v) <= v);
+  });
+}
+
+// =============================================================
+// 統計ダッシュボード
+// =============================================================
+function loadStats() {
+  const container = document.getElementById('stats-content');
+  container.innerHTML = '<div class="empty">統計を読み込み中...</div>';
+  google.script.run
+    .withSuccessHandler(stats => { renderStats(stats); })
+    .withFailureHandler(err => { container.innerHTML = '<div class="empty">統計の読み込みに失敗しました: ' + escapeHtml(err.message) + '</div>'; })
+    .getStatistics();
+}
+
+function renderStats(s) {
+  const container = document.getElementById('stats-content');
+  let html = '';
+
+  // 概要カード
+  html += `<div class="stat-cards">
+    <div class="stat-card"><div class="stat-val">${s.total}</div><div class="stat-label">総蔵書数</div></div>
+    <div class="stat-card"><div class="stat-val">${s.read}</div><div class="stat-label">既読</div></div>
+    <div class="stat-card"><div class="stat-val">${s.unread}</div><div class="stat-label">未読</div></div>
+    <div class="stat-card"><div class="stat-val">${s.owned}</div><div class="stat-label">所持</div></div>
+  </div>`;
+
+  // 平均評価
+  if (s.ratedCount > 0) {
+    html += `<div class="stat-cards"><div class="stat-card" style="grid-column:span 2;">
+      <div class="stat-val">${'★'.repeat(Math.round(s.avgRating))}${'☆'.repeat(5 - Math.round(s.avgRating))} ${s.avgRating}</div>
+      <div class="stat-label">平均評価 (${s.ratedCount}冊)</div></div></div>`;
+  }
+
+  // 月別登録数
+  if (s.byMonth.length > 0) {
+    const maxM = Math.max(...s.byMonth.map(m => m.count));
+    html += `<div class="chart-section"><h3>月別登録数</h3><div class="bar-chart">`;
+    s.byMonth.forEach(m => {
+      const pct = maxM > 0 ? Math.round(m.count / maxM * 100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">${escapeHtml(m.month)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-val">${m.count}</span></div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // 著者別冊数TOP15
+  if (s.byAuthor.length > 0) {
+    const maxA = s.byAuthor[0].count;
+    html += `<div class="chart-section"><h3>著者別冊数 TOP15</h3><div class="bar-chart">`;
+    s.byAuthor.forEach(a => {
+      const pct = maxA > 0 ? Math.round(a.count / maxA * 100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">${escapeHtml(a.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span class="bar-val">${a.count}</span></div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // 判型別
+  if (s.byFormat.length > 0) {
+    const maxF = s.byFormat[0].count;
+    html += `<div class="chart-section"><h3>判型別</h3><div class="bar-chart">`;
+    s.byFormat.forEach(f => {
+      const pct = maxF > 0 ? Math.round(f.count / maxF * 100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">${escapeHtml(f.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#8b5cf6"></div></div><span class="bar-val">${f.count}</span></div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // 評価分布
+  if (s.byRating.some(r => r.count > 0)) {
+    const maxR = Math.max(...s.byRating.map(r => r.count));
+    html += `<div class="chart-section"><h3>評価分布</h3><div class="bar-chart">`;
+    s.byRating.forEach(r => {
+      const pct = maxR > 0 ? Math.round(r.count / maxR * 100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">${'★'.repeat(r.rating)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#f59e0b"></div></div><span class="bar-val">${r.count}</span></div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // ラベル別TOP15
+  if (s.byLabel.length > 0) {
+    const maxL = s.byLabel[0].count;
+    html += `<div class="chart-section"><h3>ラベル別 TOP15</h3><div class="bar-chart">`;
+    s.byLabel.forEach(l => {
+      const pct = maxL > 0 ? Math.round(l.count / maxL * 100) : 0;
+      html += `<div class="bar-row"><span class="bar-label">${escapeHtml(l.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#10b981"></div></div><span class="bar-val">${l.count}</span></div>`;
+    });
+    html += '</div></div>';
+  }
+
+  container.innerHTML = html || '<div class="empty">データがありません</div>';
+}
+
+// =============================================================
+// CSV一括インポート
+// =============================================================
+function handleCsvFile(file) {
+  if (!file) return;
+  const resultEl = document.getElementById('csv-result');
+  resultEl.innerHTML = '<span class="loading" style="border-color:var(--c-primary);border-top-color:transparent;"></span> インポート中...';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.ok) {
+          resultEl.innerHTML = '<span style="color:var(--c-success);">✓ ' + res.count + '件インポートしました' +
+            (res.skipped > 0 ? '(' + res.skipped + '件はISBN重複のためスキップ)' : '') + '</span>';
+          loadBooks(false, true);
+          syncEditTime_();
+        } else {
+          resultEl.innerHTML = '<span style="color:var(--c-danger);">✕ ' + escapeHtml(res.error) + '</span>';
+        }
+        // ファイル入力リセット
+        document.getElementById('csv-file').value = '';
+      })
+      .withFailureHandler(err => {
+        resultEl.innerHTML = '<span style="color:var(--c-danger);">✕ エラー: ' + escapeHtml(err.message) + '</span>';
+        document.getElementById('csv-file').value = '';
+      })
+      .importCsv(text);
+  };
+  reader.onerror = function() {
+    resultEl.innerHTML = '<span style="color:var(--c-danger);">✕ ファイル読み込みに失敗しました</span>';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// =============================================================
+// スプレッドシートリンク
+// =============================================================
+function loadSpreadsheetUrl_() {
+  google.script.run
+    .withSuccessHandler(url => {
+      const link = document.getElementById('btn-spreadsheet');
+      if (link) { link.href = url; link.target = '_blank'; }
+    })
+    .getSpreadsheetUrl();
+}
+
+// =============================================================
+// 相互同期: ポーリング
+// =============================================================
+let lastKnownEditTime = '0';
+let syncIntervalId = null;
+
+function startSyncPolling() {
+  // スプレッドシートURLを事前取得
+  loadSpreadsheetUrl_();
+
+  // 初期編集時刻を取得
+  google.script.run
+    .withSuccessHandler(t => { lastKnownEditTime = t; })
+    .getLastEditTime();
+
+  // onEditトリガーをセットアップ
+  google.script.run.setupEditTrigger();
+
+  // 30秒ごとにポーリング
+  syncIntervalId = setInterval(() => {
+    google.script.run
+      .withSuccessHandler(t => {
+        if (t !== lastKnownEditTime && lastKnownEditTime !== '0') {
+          lastKnownEditTime = t;
+          // スプレッドシート側で変更があった → データ再読込
+          google.script.run
+            .withSuccessHandler(books => {
+              allBooks = books;
+              rebuildLabelsAndFilters();
+              renderList();
+              showSyncIndicator();
+            })
+            .getAllBooks();
+        } else {
+          lastKnownEditTime = t;
+        }
+      })
+      .getLastEditTime();
+  }, 30000);
+}
+
+/**
+ * 自分の更新で進んだ編集時刻を取り込む。
+ * これをしないと、次のポーリングが「自分の変更」を他所からの変更と誤認して
+ * 全件を取り直してしまう(画面には既に反映済みなので完全な無駄になる)。
+ */
+function syncEditTime_() {
+  google.script.run
+    .withSuccessHandler(t => { lastKnownEditTime = t; })
+    .getLastEditTime();
+}
+
+function showSyncIndicator() {
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+</script>
+
+</body>
+</html>
