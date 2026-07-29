@@ -1606,6 +1606,16 @@ function initApp() {
 
   window.addEventListener('resize', updateScrollFades_, { passive: true });
 
+  // カードのクリックは1つのリスナーで受ける。
+  // 540枚それぞれに登録すると、絞り込みのたびに同じ数の登録が走る。
+  document.getElementById('book-list').addEventListener('click', e => {
+    const card = e.target.closest('.book-card');
+    if (card && card.dataset.id) openEditModal(card.dataset.id);
+  });
+
+  // 一覧の続きは、画面下に近づいた時に継ぎ足す
+  window.addEventListener('scroll', onScrollAppend_, { passive: true });
+
   // 表示状態(絞り込み・表示モード・並び順)を復元
   restoreUiState_();
 
@@ -1653,6 +1663,8 @@ function initApp() {
   // （ここで return してしまうと以降の初期化が飛ぶので、分岐だけにする）
   initSetupScreen_();
   if (window.zoshoConfig && window.zoshoConfig.isSet()) {
+    // 前回の内容があれば先に描く。待ち時間を体感させないため。
+    showCachedBooks_();
     loadBooks();
     startSyncPolling();
   } else {
@@ -1730,6 +1742,40 @@ function switchTab(tab) {
 // =============================================================
 // データ取得・描画
 // =============================================================
+// =============================================================
+// 前回の一覧を端末に保存しておく
+//   GASの往復は空の応答でも2.5秒ほどかかる。起動のたびにそれを待つと
+//   何も出ない時間が長い。前回の内容を先に描き、裏で最新に差し替える。
+// =============================================================
+const BOOKS_CACHE_KEY = 'zoshoBooksCache';
+
+function saveBooksCache_(books) {
+  try {
+    localStorage.setItem(BOOKS_CACHE_KEY, JSON.stringify({ at: Date.now(), books: books }));
+  } catch (e) {
+    // 容量超過などで保存できなくても、動作には影響しない
+  }
+}
+
+function loadBooksCache_() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BOOKS_CACHE_KEY) || 'null');
+    return raw && Array.isArray(raw.books) && raw.books.length ? raw : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** 保存してある一覧をすぐ描く。描けたら true */
+function showCachedBooks_() {
+  const cached = loadBooksCache_();
+  if (!cached) return false;
+  allBooks = cached.books;
+  rebuildLabelsAndFilters();
+  renderList();
+  return true;
+}
+
 function loadBooks(showToast, force) {
   const refreshBtn = document.getElementById('btn-refresh');
   if (refreshBtn) {
@@ -1753,6 +1799,7 @@ function loadBooks(showToast, force) {
     .withSuccessHandler(books => {
       allBooks = books;
       lastLoadedAt = Date.now();
+      saveBooksCache_(books);
       rebuildLabelsAndFilters();
       renderList();
       done();
@@ -2031,13 +2078,45 @@ function renderList() {
   }
 }
 
+// 一覧は少しずつ描く。
+// 540冊を一度に描くと、DOMが6000ノード近くなり書影の要求も同時に走るため、
+// スマホでは表示までに目に見える待ちが出る。画面下に近づいたら継ぎ足す。
+const LIST_CHUNK = 80;
+let pendingBooks = [];
+let renderedCount = 0;
+
 function renderFlatView(list, books) {
   sortBooks_(books, currentSort);
-  const html = books.map(b => bookCardHtml(b)).join('');
-  list.innerHTML = html;
-  list.querySelectorAll('.book-card').forEach(card => {
-    card.addEventListener('click', () => openEditModal(card.dataset.id));
-  });
+  pendingBooks = books;
+  renderedCount = 0;
+  list.innerHTML = '';
+  appendChunk_();
+  // 画面が縦に長い場合は1回分では埋まらないので、埋まるまで足す
+  fillViewport_();
+}
+
+function appendChunk_() {
+  if (renderedCount >= pendingBooks.length) return false;
+  const list = document.getElementById('book-list');
+  const next = pendingBooks.slice(renderedCount, renderedCount + LIST_CHUNK);
+  list.insertAdjacentHTML('beforeend', next.map(b => bookCardHtml(b)).join(''));
+  renderedCount += next.length;
+  return true;
+}
+
+function fillViewport_() {
+  let guard = 0;
+  while (guard++ < 50 && renderedCount < pendingBooks.length
+    && document.body.scrollHeight <= window.innerHeight + 200) {
+    appendChunk_();
+  }
+}
+
+function onScrollAppend_() {
+  if (renderedCount >= pendingBooks.length) return;
+  if (window.innerHeight + window.scrollY > document.body.scrollHeight - 600) {
+    appendChunk_();
+  }
 }
 
 /**
@@ -2134,13 +2213,7 @@ function renderAuthorView(list, books) {
     renderList();
   });
 
-  // カードクリック
-  list.querySelectorAll('.book-card').forEach(card => {
-    card.addEventListener('click', e => {
-      e.stopPropagation();
-      openEditModal(card.dataset.id);
-    });
-  });
+  // カードのクリックは一覧全体で1つのリスナーに任せる（initAppで設定）
 }
 
 /** 表紙画像のURL。openBDのカバーはISBNから引ける(無い本も多いので失敗時は絵文字に差し替える) */
@@ -2914,8 +2987,11 @@ function startSyncPolling() {
   // onEditトリガーをセットアップ
   google.script.run.setupEditTrigger();
 
-  // 30秒ごとにポーリング
+  // 変更の見張り。
+  // 1回の問い合わせでもGASの往復で2.5秒ほどかかるので、間隔は控えめにし、
+  // 画面が見えていない間は止める（復帰時の visibilitychange で取り直す）。
   syncIntervalId = setInterval(() => {
+    if (document.hidden) return;
     google.script.run
       .withSuccessHandler(t => {
         if (t !== lastKnownEditTime && lastKnownEditTime !== '0') {
@@ -2924,6 +3000,8 @@ function startSyncPolling() {
           google.script.run
             .withSuccessHandler(books => {
               allBooks = books;
+              lastLoadedAt = Date.now();
+              saveBooksCache_(books);
               rebuildLabelsAndFilters();
               renderList();
               showSyncIndicator();
@@ -2934,7 +3012,7 @@ function startSyncPolling() {
         }
       })
       .getLastEditTime();
-  }, 30000);
+  }, 60000);
 }
 
 /**
