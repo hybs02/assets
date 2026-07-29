@@ -14,8 +14,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- 日本語のWebフォントは読まない。
+       Noto Sans JP を4ウェイト指定すると、宣言だけで448KBのCSSを描画前に待つことになり
+       （フォント本体は496ファイル・約20MB）、スマホでは表示が目に見えて遅れる。
+       端末標準の日本語フォントで十分きれいなので、そちらを使う。 -->
   <style>
     :root {
       --c-bg: #f7f8fc;
@@ -45,7 +47,9 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       margin: 0;
-      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+      /* 端末標準の日本語フォント。Webフォントは読み込まない（理由は head のコメント参照） */
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+        'Noto Sans JP', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Segoe UI', sans-serif;
       background: var(--c-bg);
       color: var(--c-text);
       padding-bottom: calc(72px + var(--safe-bottom));
@@ -1609,6 +1613,8 @@ function initApp() {
   // カードのクリックは1つのリスナーで受ける。
   // 540枚それぞれに登録すると、絞り込みのたびに同じ数の登録が走る。
   document.getElementById('book-list').addEventListener('click', e => {
+    const header = e.target.closest('.author-header');
+    if (header) { toggleAuthorGroup_(header); return; }
     const card = e.target.closest('.book-card');
     if (card && card.dataset.id) openEditModal(card.dataset.id);
   });
@@ -2082,17 +2088,26 @@ function renderList() {
 // 540冊を一度に描くと、DOMが6000ノード近くなり書影の要求も同時に走るため、
 // スマホでは表示までに目に見える待ちが出る。画面下に近づいたら継ぎ足す。
 const LIST_CHUNK = 80;
+let listMode = 'flat';
 let pendingBooks = [];
 let renderedCount = 0;
+let pendingGroups = [];
+let renderedGroupCount = 0;
 
 function renderFlatView(list, books) {
   sortBooks_(books, currentSort);
+  listMode = 'flat';
   pendingBooks = books;
   renderedCount = 0;
   list.innerHTML = '';
   appendChunk_();
   // 画面が縦に長い場合は1回分では埋まらないので、埋まるまで足す
   fillViewport_();
+}
+
+/** 表示中の形式に応じて続きを描く。まだ残りがあれば true */
+function appendMore_() {
+  return listMode === 'author' ? appendGroupChunk_() : appendChunk_();
 }
 
 function appendChunk_() {
@@ -2106,17 +2121,31 @@ function appendChunk_() {
 
 function fillViewport_() {
   let guard = 0;
-  while (guard++ < 50 && renderedCount < pendingBooks.length
-    && document.body.scrollHeight <= window.innerHeight + 200) {
-    appendChunk_();
+  while (guard++ < 50 && document.body.scrollHeight <= window.innerHeight + 200) {
+    if (!appendMore_()) return;
   }
 }
 
 function onScrollAppend_() {
-  if (renderedCount >= pendingBooks.length) return;
   if (window.innerHeight + window.scrollY > document.body.scrollHeight - 600) {
-    appendChunk_();
+    appendMore_();
   }
+}
+
+/** 著者グループの開閉。折りたたんだまま描いていないグループは、開くときに中身を作る */
+function toggleAuthorGroup_(header) {
+  const author = header.dataset.author;
+  const isCollapsed = header.classList.toggle('collapsed');
+  const booksEl = header.parentNode.querySelector('.author-books');
+  if (booksEl) {
+    if (!isCollapsed && booksEl.dataset.filled !== '1') {
+      const g = pendingGroups.find(x => x.author === author);
+      if (g) booksEl.innerHTML = g.books.map(b => bookCardHtml(b)).join('');
+      booksEl.dataset.filled = '1';
+    }
+    booksEl.classList.toggle('collapsed', isCollapsed);
+  }
+  collapsedAuthors[author] = isCollapsed;
 }
 
 /**
@@ -2173,37 +2202,15 @@ function renderAuthorView(list, books) {
     </div>
   `;
 
-  const groupsHtml = sortedAuthors.map(g => {
-    const isCollapsed = collapsedAuthors[g.author] === true;
-    const cardsHtml = g.books.map(b => bookCardHtml(b)).join('');
-    return `
-      <div class="author-group">
-        <div class="author-header ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}">
-          <span class="arrow">▼</span>
-          <span class="author-name">${escapeHtml(g.author)}${g.authorYomi ? '<span class="author-yomi">' + escapeHtml(g.authorYomi) + '</span>' : ''}</span>
-          <span class="author-count">${g.books.length}冊</span>
-        </div>
-        <div class="author-books ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}">
-          ${cardsHtml}
-        </div>
-      </div>
-    `;
-  }).join('');
+  // 著者別も一度に全部は描かない。リスト表示と同じく、画面下に近づいたら継ぎ足す
+  listMode = 'author';
+  pendingGroups = sortedAuthors;
+  renderedGroupCount = 0;
+  list.innerHTML = controlsHtml;
+  appendGroupChunk_();
+  fillViewport_();
 
-  list.innerHTML = controlsHtml + groupsHtml;
-
-  // 折りたたみ動作
-  list.querySelectorAll('.author-header').forEach(h => {
-    h.addEventListener('click', () => {
-      const author = h.dataset.author;
-      const isCollapsed = h.classList.toggle('collapsed');
-      const booksEl = list.querySelector('.author-books[data-author="' + cssEscape(author) + '"]');
-      if (booksEl) booksEl.classList.toggle('collapsed', isCollapsed);
-      collapsedAuthors[author] = isCollapsed;
-    });
-  });
-
-  // 全展開・全折りたたみ
+  // 全展開・全折りたたみ（この2つは先頭に1つだけなので直接登録する）
   document.getElementById('btn-expand-all').addEventListener('click', () => {
     sortedAuthors.forEach(g => { collapsedAuthors[g.author] = false; });
     renderList();
@@ -2213,7 +2220,35 @@ function renderAuthorView(list, books) {
     renderList();
   });
 
-  // カードのクリックは一覧全体で1つのリスナーに任せる（initAppで設定）
+  // カードのクリックと折りたたみは一覧全体で1つのリスナーに任せる（initAppで設定）
+}
+
+/** 著者グループを、本の数が1回分に達するまで継ぎ足す */
+function appendGroupChunk_() {
+  if (renderedGroupCount >= pendingGroups.length) return false;
+  const list = document.getElementById('book-list');
+  let added = 0;
+  let html = '';
+  while (renderedGroupCount < pendingGroups.length && added < LIST_CHUNK) {
+    const g = pendingGroups[renderedGroupCount++];
+    const isCollapsed = collapsedAuthors[g.author] === true;
+    const cardsHtml = isCollapsed ? '' : g.books.map(b => bookCardHtml(b)).join('');
+    if (!isCollapsed) added += g.books.length;
+    html += `
+      <div class="author-group">
+        <div class="author-header ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}">
+          <span class="arrow">▼</span>
+          <span class="author-name">${escapeHtml(g.author)}${g.authorYomi ? '<span class="author-yomi">' + escapeHtml(g.authorYomi) + '</span>' : ''}</span>
+          <span class="author-count">${g.books.length}冊</span>
+        </div>
+        <div class="author-books ${isCollapsed ? 'collapsed' : ''}" data-author="${escapeHtml(g.author)}" data-filled="${isCollapsed ? '0' : '1'}">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+  }
+  list.insertAdjacentHTML('beforeend', html);
+  return true;
 }
 
 /** 表紙画像のURL。openBDのカバーはISBNから引ける(無い本も多いので失敗時は絵文字に差し替える) */
@@ -2245,7 +2280,7 @@ function bookCardHtml(b) {
 
   const url = coverUrl_(b.isbn);
   const cover = url
-    ? `<div class="cover"><img src="${escapeHtml(url)}" alt="" loading="lazy" onerror="this.parentNode.textContent='📖'"></div>`
+    ? `<div class="cover"><img src="${escapeHtml(url)}" alt="" loading="lazy" decoding="async" onerror="this.parentNode.textContent='📖'"></div>`
     : '<div class="cover">📖</div>';
 
   return `
@@ -2960,11 +2995,25 @@ function handleCsvFile(file) {
 // =============================================================
 // スプレッドシートリンク
 // =============================================================
+// スプレッドシートのURLは変わらないので、一度取ったら端末に覚えておく。
+// 起動のたびに問い合わせると、それだけで2.5秒の往復が1回増える。
 function loadSpreadsheetUrl_() {
+  const link = document.getElementById('btn-spreadsheet');
+  if (!link) return;
+
+  let cached = null;
+  try { cached = localStorage.getItem('zoshoSheetUrl'); } catch (e) { cached = null; }
+  if (cached) {
+    link.href = cached;
+    link.target = '_blank';
+    return;
+  }
+
   google.script.run
     .withSuccessHandler(url => {
-      const link = document.getElementById('btn-spreadsheet');
-      if (link) { link.href = url; link.target = '_blank'; }
+      link.href = url;
+      link.target = '_blank';
+      try { localStorage.setItem('zoshoSheetUrl', url); } catch (e) { /* 保存できなくてもよい */ }
     })
     .getSpreadsheetUrl();
 }
@@ -2984,8 +3033,17 @@ function startSyncPolling() {
     .withSuccessHandler(t => { lastKnownEditTime = t; })
     .getLastEditTime();
 
-  // onEditトリガーをセットアップ
-  google.script.run.setupEditTrigger();
+  // onEditトリガーの用意は一度きりでよい。
+  // 毎回投げると起動時の往復が1回増えるだけなので、成功したら端末に記録する。
+  let triggerDone = false;
+  try { triggerDone = localStorage.getItem('zoshoTriggerReady') === '1'; } catch (e) { triggerDone = false; }
+  if (!triggerDone) {
+    google.script.run
+      .withSuccessHandler(() => {
+        try { localStorage.setItem('zoshoTriggerReady', '1'); } catch (e) { /* 保存できなくてもよい */ }
+      })
+      .setupEditTrigger();
+  }
 
   // 変更の見張り。
   // 1回の問い合わせでもGASの往復で2.5秒ほどかかるので、間隔は控えめにし、
